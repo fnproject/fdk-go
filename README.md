@@ -21,7 +21,7 @@ func main() {
   fdk.Do(myHandler)
 }
 
-func myHandler(ctx context.Context, in io.Reader, out io.Writer) error {
+func myHandler(ctx context.Context, in io.Reader, out io.Writer) {
   fnctx := fdk.Context(ctx)
 
   var b bytes.Buffer
@@ -48,12 +48,13 @@ func main() {
   fdk.Do(myHandler)
 }
 
-func myHandler(ctx context.Context, in io.Reader, out io.Writer) error {
+func myHandler(ctx context.Context, in io.Reader, out io.Writer) {
   fnctx := fdk.Context(ctx)
 
   contentType := fntctx.Headers["Content-Type"]
   if contentType != "application/json" {
-    return fdk.Error(400, "invalid content type")
+    fdk.ErrorJSON(out, 400, "invalid content type")
+    return
   }
 
   var person struct {
@@ -66,15 +67,15 @@ func myHandler(ctx context.Context, in io.Reader, out io.Writer) error {
   fdk.WriteHeader(out, "Content-Type", "application/json")
 
   all := struct {
-    Name   string `json:"name"`
+    Name   string              `json:"name"`
     Header map[string][]string `json:"header"`
-    Config map[string]string `json:"config"`
+    Config map[string]string   `json:"config"`
   }{
     Name: person.Name,
     Header: fnctx.Header,
     Config: fnctx.Config,
   }
 
-  return json.NewEncoder(out).Encode(&all)
+  json.NewEncoder(out).Encode(&all)
 }
 ```
