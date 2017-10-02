@@ -18,7 +18,7 @@ import (
 )
 
 func main() {
-  fdk.Do(myHandler)
+  fdk.Do(fdk.HandlerFunc(myHandler))
 }
 
 func myHandler(ctx context.Context, in io.Reader, out io.Writer) {
@@ -45,7 +45,7 @@ import (
 )
 
 func main() {
-  fdk.Do(myHandler)
+  fdk.Do(fdk.HandlerFunc(myHandler))
 }
 
 func myHandler(ctx context.Context, in io.Reader, out io.Writer) {
