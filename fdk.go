@@ -31,6 +31,7 @@ func WithContext(ctx context.Context, fnctx *Ctx) context.Context {
 	return context.WithValue(ctx, ctxKey, fnctx)
 }
 
+// Ctx provides access to Config and Headers from fn.
 type Ctx struct {
 	Header http.Header
 	Config map[string]string
@@ -64,6 +65,9 @@ func WriteStatus(out io.Writer, status int) {
 	}
 }
 
+// Do will run the event loop for a function. It should be invoked through main()
+// in a user's function and can handle communication between the function and fn
+// server via any of the supported formats.
 func Do(handler Handler) {
 	format, _ := os.LookupEnv("FN_FORMAT")
 	do(handler, format, os.Stdin, os.Stdout)
