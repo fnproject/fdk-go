@@ -45,15 +45,31 @@ import (
 )
 
 func main() {
-  fdk.Do(fdk.HandlerFunc(myHandler))
+  fdk.Do(new(mydoer))
 }
 
-func myHandler(ctx context.Context, in io.Reader, out io.Writer) {
+// use a struct to maintain state between invocations
+type mydoer struct {
+  count int
+}
+
+func (m *mydoer) Serve(ctx context.Context, in io.Reader, out io.Writer) {
+  m.count++
+
   fnctx := fdk.Context(ctx)
 
-  contentType := fntctx.Headers["Content-Type"]
+  contentType := fntctx.Header.Get("Content-Type")
   if contentType != "application/json" {
-    fdk.ErrorJSON(out, 400, "invalid content type")
+    fdk.WriteStatus(out, 400)
+    fdk.SetHeader(out, "Content-Type", "application/json")
+    io.Copy(out, `{"error":"invalid content type"}`)
+    return
+  }
+
+  if fnctx.Config["FN_METHOD"] != "PUT" {
+    fdk.WriteStatus(out, 404)
+    fdk.SetHeader(out, "Content-Type", "application/json")
+    io.Copy(out, `{"error":"route not found"}`)
     return
   }
 
@@ -62,9 +78,9 @@ func myHandler(ctx context.Context, in io.Reader, out io.Writer) {
   }
   json.NewDecoder(in).Decode(&person)
 
-  // you can write your own headers, if you'd like to
+  // you can write your own headers & status, if you'd like to
   fdk.WriteStatus(out, 201)
-  fdk.WriteHeader(out, "Content-Type", "application/json")
+  fdk.SetHeader(out, "Content-Type", "application/json")
 
   all := struct {
     Name   string              `json:"name"`

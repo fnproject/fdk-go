@@ -21,73 +21,124 @@ func (f HandlerFunc) Serve(ctx context.Context, in io.Reader, out io.Writer) {
 	f(ctx, in, out)
 }
 
+// Context will return an *fn.Ctx that can be used to read configuration and
+// request information from an incoming request.
+func Context(ctx context.Context) *Ctx {
+	return ctx.Value(ctxKey).(*Ctx)
+}
+
+func WithContext(ctx context.Context, fnctx *Ctx) context.Context {
+	return context.WithValue(ctx, ctxKey, fnctx)
+}
+
+type Ctx struct {
+	Header http.Header
+	Config map[string]string
+}
+
+type key struct{}
+
+var ctxKey = new(key)
+
+// AddHeader will add a header on the function response, for hot function
+// formats.
+func AddHeader(out io.Writer, key, value string) {
+	if resp, ok := out.(*response); ok {
+		resp.header.Add(key, value)
+	}
+}
+
+// SetHeader will set a header on the function response, for hot function
+// formats.
+func SetHeader(out io.Writer, key, value string) {
+	if resp, ok := out.(*response); ok {
+		resp.header.Set(key, value)
+	}
+}
+
+// WriteStatus will set the status code to return in the function response, for
+// hot function formats.
+func WriteStatus(out io.Writer, status int) {
+	if resp, ok := out.(*response); ok {
+		resp.status = status
+	}
+}
+
 func Do(handler Handler) {
 	format, _ := os.LookupEnv("FN_FORMAT")
+	do(handler, format, os.Stdin, os.Stdout)
+}
+
+func do(handler Handler, format string, in io.Reader, out io.Writer) {
+	ctx := buildCtx()
 	switch format {
 	case "http":
-		doHTTP(handler)
+		doHTTP(handler, ctx, in, out)
 	case "default":
-		doDefault(handler)
+		doDefault(handler, ctx, in, out)
 	default:
 		panic("unknown format (fdk-go): " + format)
 	}
 }
 
 // doDefault only runs once, since it is a 'cold' function
-func doDefault(handler Handler) {
-	ctx := buildCtx()
+func doDefault(handler Handler, ctx context.Context, in io.Reader, out io.Writer) {
 	setHeaders(ctx, buildHeadersFromEnv())
 
 	// TODO we need to set deadline on ctx here (need FN_DEADLINE header)
-	handler.Serve(ctx, os.Stdin, os.Stdout)
+	handler.Serve(ctx, in, out)
 }
 
-func doHTTP(handler Handler) {
-	ctx := buildCtx()
-
+// doHTTP runs a loop, reading http requests from in and writing
+// http responses to out
+func doHTTP(handler Handler, ctx context.Context, in io.Reader, out io.Writer) {
 	var buf bytes.Buffer
 	// maps don't get down-sized, so we can reuse this as it's likely that the
 	// user sends in the same amount of headers over and over (but still clear
 	// b/w runs) -- buf uses same principle
-	hdr := make(map[string][]string)
+	hdr := make(http.Header)
 
 	for {
-		// TODO we need to set deadline on ctx here (need FN_DEADLINE header)
-		// for now, just get a new ctx each go round
-		ctx, _ := context.WithCancel(ctx)
-
-		buf.Reset()
-		resetHeaders(hdr)
-		resp := response{
-			Writer: &buf,
-			status: 200,
-			header: hdr,
-		}
-
-		req, err := http.ReadRequest(bufio.NewReader(os.Stdin))
-		if err != nil {
-			// TODO it would be nice if we could let the user format this response to their preferred style..
-			resp.status = http.StatusInternalServerError
-			io.WriteString(resp, err.Error())
-		} else {
-			setHeaders(ctx, req.Header)
-			handler.Serve(ctx, req.Body, &resp)
-		}
-
-		hResp := http.Response{
-			ProtoMajor:    1,
-			ProtoMinor:    1,
-			StatusCode:    resp.status,
-			Request:       req,
-			Body:          ioutil.NopCloser(&buf),
-			ContentLength: int64(buf.Len()),
-			Header:        resp.header,
-		}
-		hResp.Write(os.Stdout)
+		doHTTPOnce(handler, ctx, in, out, &buf, hdr)
 	}
 }
 
-func resetHeaders(m map[string][]string) {
+func doHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf *bytes.Buffer, hdr http.Header) {
+	// TODO we need to set deadline on ctx here (need FN_DEADLINE header)
+	// for now, just get a new ctx each go round
+	ctx, _ = context.WithCancel(ctx)
+
+	buf.Reset()
+	resetHeaders(hdr)
+	resp := response{
+		Writer: buf,
+		status: 200,
+		header: hdr,
+	}
+
+	req, err := http.ReadRequest(bufio.NewReader(in))
+	if err != nil {
+		// TODO it would be nice if we could let the user format this response to their preferred style..
+		resp.status = http.StatusInternalServerError
+		io.WriteString(resp, err.Error())
+	} else {
+		setHeaders(ctx, req.Header)
+		handler.Serve(ctx, req.Body, &resp)
+	}
+
+	hResp := http.Response{
+		ProtoMajor:    1,
+		ProtoMinor:    1,
+		StatusCode:    resp.status,
+		Request:       req,
+		Body:          ioutil.NopCloser(buf),
+		ContentLength: int64(buf.Len()),
+		Header:        resp.header,
+	}
+	hResp.Write(out)
+}
+
+func resetHeaders(m http.Header) {
 	for k := range m { // compiler optimizes this to 1 instruction now
 		delete(m, k)
 	}
@@ -97,19 +148,10 @@ func resetHeaders(m map[string][]string) {
 // user's code responses before formatting them appropriately.
 type response struct {
 	status int
-	header map[string][]string
+	header http.Header
 
 	io.Writer
 }
-
-type Context struct {
-	Headers map[string][]string
-	Config  map[string]string
-}
-
-type key struct{}
-
-var ctxKey = new(key)
 
 var (
 	base = map[string]struct{}{
@@ -132,18 +174,18 @@ var (
 	}
 )
 
-func setHeaders(ctx context.Context, hdr map[string][]string) {
-	fctx := ctx.Value(ctxKey).(*Context)
-	fctx.Headers = hdr
+func setHeaders(ctx context.Context, hdr http.Header) {
+	fctx := ctx.Value(ctxKey).(*Ctx)
+	fctx.Header = hdr
 }
 
 func buildCtx() context.Context {
-	ctx := &Context{
+	ctx := &Ctx{
 		Config: buildConfig(),
 		// allow caller to build headers separately (to avoid map alloc)
 	}
 
-	return context.WithValue(context.Background(), ctxKey, ctx)
+	return WithContext(context.Background(), ctx)
 }
 
 func buildConfig() map[string]string {
@@ -162,9 +204,9 @@ func buildConfig() map[string]string {
 	return cfg
 }
 
-func buildHeadersFromEnv() map[string][]string {
+func buildHeadersFromEnv() http.Header {
 	env := os.Environ()
-	hdr := make(map[string][]string, len(env)-len(base))
+	hdr := make(http.Header, len(env)-len(base))
 
 	for _, e := range env {
 		vs := strings.SplitN(e, "=", 1)
