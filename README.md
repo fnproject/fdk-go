@@ -10,9 +10,9 @@ For getting started with fn, please refer to https://github.com/fnproject/fn/blo
 package main
 
 import (
-  "bytes"
   "fmt"
   "io"
+  "json"
 
   fdk "github.com/fnproject/fdk-go"
 )
@@ -22,16 +22,21 @@ func main() {
 }
 
 func myHandler(ctx context.Context, in io.Reader, out io.Writer) {
-  fnctx := fdk.Context(ctx)
-
-  var b bytes.Buffer
-  io.Copy(&b, in)
-  fmt.Fprintf(out, fmt.Sprintf("Hello %s\n", b.String()))
-
-  for k, vs := range fnctx.Header {
-    fmt.Fprintf(out, fmt.Sprintf("ENV: %s %#v\n", k, vs))
+  var person struct {
+    Name `json:"name"`
   }
-  return nil
+  json.NewDecoder(in).Decode(&person)
+  if person.Name == "" {
+    person.Name = "world"
+  }
+
+  msg := struct {
+    Msg `json:"msg"`
+  }{
+    Msg: fmt.Sprintf("Hello %s!\n", person.Name),
+  }
+
+  json.NewEncoder(out).Encode(&msg)
 }
 ```
 
@@ -41,21 +46,18 @@ func myHandler(ctx context.Context, in io.Reader, out io.Writer) {
 package main
 
 import (
+  "fmt"
+  "io"
+  "json"
+
   fdk "github.com/fnproject/fdk-go"
 )
 
 func main() {
-  fdk.Do(new(mydoer))
+  fdk.Handle(fdk.HandlerFunc(myHandler))
 }
 
-// use a struct to maintain state between invocations
-type mydoer struct {
-  count int
-}
-
-func (m *mydoer) Serve(ctx context.Context, in io.Reader, out io.Writer) {
-  m.count++
-
+func myHandler(ctx context.Context, in io.Reader, out io.Writer) {
   fnctx := fdk.Context(ctx)
 
   contentType := fntctx.Header.Get("Content-Type")
@@ -83,9 +85,9 @@ func (m *mydoer) Serve(ctx context.Context, in io.Reader, out io.Writer) {
   fdk.SetHeader(out, "Content-Type", "application/json")
 
   all := struct {
-    Name   string              `json:"name"`
-    Header map[string][]string `json:"header"`
-    Config map[string]string   `json:"config"`
+    Name   string            `json:"name"`
+    Header http.Header       `json:"header"`
+    Config map[string]string `json:"config"`
   }{
     Name: person.Name,
     Header: fnctx.Header,

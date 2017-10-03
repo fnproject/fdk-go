@@ -65,10 +65,10 @@ func WriteStatus(out io.Writer, status int) {
 	}
 }
 
-// Do will run the event loop for a function. It should be invoked through main()
-// in a user's function and can handle communication between the function and fn
-// server via any of the supported formats.
-func Do(handler Handler) {
+// Handle will run the event loop for a function. Handle should be invoked
+// through main() in a user's function and can handle communication between the
+// function and fn server via any of the supported formats.
+func Handle(handler Handler) {
 	format, _ := os.LookupEnv("FN_FORMAT")
 	do(handler, format, os.Stdin, os.Stdout)
 }
