@@ -4,51 +4,24 @@ fdk-go provides convenience functions for writing Go fn code
 
 For getting started with fn, please refer to https://github.com/fnproject/fn/blob/master/README.md
 
-# Example function using fdk-go
+# Examples
 
-```go
-package main
-
-import (
-  "fmt"
-  "io"
-  "json"
-
-  fdk "github.com/fnproject/fdk-go"
-)
-
-func main() {
-  fdk.Do(fdk.HandlerFunc(myHandler))
-}
-
-func myHandler(ctx context.Context, in io.Reader, out io.Writer) {
-  var person struct {
-    Name `json:"name"`
-  }
-  json.NewDecoder(in).Decode(&person)
-  if person.Name == "" {
-    person.Name = "world"
-  }
-
-  msg := struct {
-    Msg `json:"msg"`
-  }{
-    Msg: fmt.Sprintf("Hello %s!\n", person.Name),
-  }
-
-  json.NewEncoder(out).Encode(&msg)
-}
-```
+For a simple getting started, see the [examples](/examples/hello) and follow
+the [README](/examples/hello/README.md). If you already have `fn` set up it
+will take 2 minutes!
 
 # Advanced example
 
+TODO going to move to [examples](examples/) too :)
+
 ```go
 package main
 
 import (
+  "context"
   "fmt"
   "io"
-  "json"
+  "encoding/json"
 
   fdk "github.com/fnproject/fdk-go"
 )
@@ -76,7 +49,7 @@ func myHandler(ctx context.Context, in io.Reader, out io.Writer) {
   }
 
   var person struct {
-    Name `json:"name"`
+    Name string `json:"name"`
   }
   json.NewDecoder(in).Decode(&person)
 
