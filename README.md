@@ -10,28 +10,33 @@ For getting started with fn, please refer to https://github.com/fnproject/fn/blo
 package main
 
 import (
-  "bytes"
   "fmt"
   "io"
+  "json"
 
   fdk "github.com/fnproject/fdk-go"
 )
 
 func main() {
-  fdk.Do(myHandler)
+  fdk.Do(fdk.HandlerFunc(myHandler))
 }
 
-func myHandler(ctx context.Context, in io.Reader, out io.Writer) error {
-  fnctx := fdk.Context(ctx)
-
-  var b bytes.Buffer
-  io.Copy(&b, in)
-  fmt.Fprintf(out, fmt.Sprintf("Hello %s\n", b.String()))
-
-  for k, vs := range fnctx.Header {
-    fmt.Fprintf(out, fmt.Sprintf("ENV: %s %#v\n", k, vs))
+func myHandler(ctx context.Context, in io.Reader, out io.Writer) {
+  var person struct {
+    Name `json:"name"`
   }
-  return nil
+  json.NewDecoder(in).Decode(&person)
+  if person.Name == "" {
+    person.Name = "world"
+  }
+
+  msg := struct {
+    Msg `json:"msg"`
+  }{
+    Msg: fmt.Sprintf("Hello %s!\n", person.Name),
+  }
+
+  json.NewEncoder(out).Encode(&msg)
 }
 ```
 
@@ -41,19 +46,33 @@ func myHandler(ctx context.Context, in io.Reader, out io.Writer) error {
 package main
 
 import (
+  "fmt"
+  "io"
+  "json"
+
   fdk "github.com/fnproject/fdk-go"
 )
 
 func main() {
-  fdk.Do(myHandler)
+  fdk.Handle(fdk.HandlerFunc(myHandler))
 }
 
-func myHandler(ctx context.Context, in io.Reader, out io.Writer) error {
+func myHandler(ctx context.Context, in io.Reader, out io.Writer) {
   fnctx := fdk.Context(ctx)
 
-  contentType := fntctx.Headers["Content-Type"]
+  contentType := fntctx.Header.Get("Content-Type")
   if contentType != "application/json" {
-    return fdk.Error(400, "invalid content type")
+    fdk.WriteStatus(out, 400)
+    fdk.SetHeader(out, "Content-Type", "application/json")
+    io.Copy(out, `{"error":"invalid content type"}`)
+    return
+  }
+
+  if fnctx.Config["FN_METHOD"] != "PUT" {
+    fdk.WriteStatus(out, 404)
+    fdk.SetHeader(out, "Content-Type", "application/json")
+    io.Copy(out, `{"error":"route not found"}`)
+    return
   }
 
   var person struct {
@@ -61,13 +80,13 @@ func myHandler(ctx context.Context, in io.Reader, out io.Writer) error {
   }
   json.NewDecoder(in).Decode(&person)
 
-  // you can write your own headers, if you'd like to
+  // you can write your own headers & status, if you'd like to
   fdk.WriteStatus(out, 201)
-  fdk.WriteHeader(out, "Content-Type", "application/json")
+  fdk.SetHeader(out, "Content-Type", "application/json")
 
   all := struct {
-    Name   string `json:"name"`
-    Header map[string][]string `json:"header"`
+    Name   string            `json:"name"`
+    Header http.Header       `json:"header"`
     Config map[string]string `json:"config"`
   }{
     Name: person.Name,
@@ -75,6 +94,6 @@ func myHandler(ctx context.Context, in io.Reader, out io.Writer) error {
     Config: fnctx.Config,
   }
 
-  return json.NewEncoder(out).Encode(&all)
+  json.NewEncoder(out).Encode(&all)
 }
 ```
