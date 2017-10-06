@@ -31,6 +31,10 @@ Now call your function (may take a sec to pull image):
 curl -X POST -d '{"name":"Clarice"}' http://localhost:8080/r/hot-app/hello
 ```
 
+**Note** that this expects you were in a directory named 'hello' (where this
+example lives), if this doesn't work, replace 'hello' with your `$PWD` from
+the `deploy` command.
+
 Then call it again to see how fast hot functions are!
 
 ### Details
