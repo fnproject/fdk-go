@@ -110,7 +110,8 @@ func doHTTP(handler Handler, ctx context.Context, in io.Reader, out io.Writer) {
 func doHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf *bytes.Buffer, hdr http.Header) {
 	// TODO we need to set deadline on ctx here (need FN_DEADLINE header)
 	// for now, just get a new ctx each go round
-	ctx, _ = context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	buf.Reset()
 	resetHeaders(hdr)
@@ -197,9 +198,6 @@ func buildConfig() map[string]string {
 
 	for _, e := range os.Environ() {
 		vs := strings.SplitN(e, "=", 1)
-		if _, ok := base[vs[0]]; !ok {
-			continue
-		}
 		if len(vs) < 2 {
 			vs = append(vs, "")
 		}
