@@ -197,7 +197,7 @@ func buildConfig() map[string]string {
 	cfg := make(map[string]string, len(base))
 
 	for _, e := range os.Environ() {
-		vs := strings.SplitN(e, "=", 1)
+		vs := strings.SplitN(e, "=", 2)
 		if len(vs) < 2 {
 			vs = append(vs, "")
 		}
@@ -211,7 +211,7 @@ func buildHeadersFromEnv() http.Header {
 	hdr := make(http.Header, len(env)-len(base))
 
 	for _, e := range env {
-		vs := strings.SplitN(e, "=", 1)
+		vs := strings.SplitN(e, "=", 2)
 		if !header(vs[0]) {
 			continue
 		}
