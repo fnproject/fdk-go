@@ -32,8 +32,9 @@ import (
   "fmt"
   "io"
   "encoding/json"
-
+  
   fdk "github.com/fnproject/fdk-go"
+  "net/http"
 )
 
 func main() {
@@ -43,18 +44,18 @@ func main() {
 func myHandler(ctx context.Context, in io.Reader, out io.Writer) {
   fnctx := fdk.Context(ctx)
 
-  contentType := fntctx.Header.Get("Content-Type")
+  contentType := fnctx.Header.Get("Content-Type")
   if contentType != "application/json" {
     fdk.WriteStatus(out, 400)
     fdk.SetHeader(out, "Content-Type", "application/json")
-    io.Copy(out, `{"error":"invalid content type"}`)
+    io.WriteString(out, `{"error":"invalid content type"}`)
     return
   }
 
   if fnctx.Config["FN_METHOD"] != "PUT" {
     fdk.WriteStatus(out, 404)
     fdk.SetHeader(out, "Content-Type", "application/json")
-    io.Copy(out, `{"error":"route not found"}`)
+    io.WriteString(out, `{"error":"route not found"}`)
     return
   }
 
