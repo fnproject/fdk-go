@@ -115,11 +115,8 @@ func doJSON(handler Handler, ctx context.Context, in io.Reader, out io.Writer) {
 	var buf bytes.Buffer
 	hdr := make(http.Header)
 
-	resp := &jsonOut{}
-	req := &jsonIn{}
-
 	for {
-		doJSONOnce(handler, ctx, in, out, resp, req, &buf, hdr)
+		doJSONOnce(handler, ctx, in, out, &buf, hdr)
 	}
 }
 
@@ -155,11 +152,14 @@ func (out *jsonOut) WriteStatus(status int) {
 	out.Protocol.StatusCode = status
 }
 
-func doJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, jsonResponse *jsonOut, jsonRequest *jsonIn, buf *bytes.Buffer, hdr http.Header) {
+func doJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf *bytes.Buffer, hdr http.Header) {
 	buf.Reset()
 	resetHeaders(hdr)
 
-	err := json.NewDecoder(in).Decode(jsonRequest)
+	var jsonResponse jsonOut
+	var jsonRequest jsonIn
+
+	err := json.NewDecoder(in).Decode(&jsonRequest)
 	if err != nil {
 		jsonResponse.WriteStatus(500)
 		jsonResponse.Body = fmt.Sprintf(`{"error": %v}`, err.Error())

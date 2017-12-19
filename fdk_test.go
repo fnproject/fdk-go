@@ -76,17 +76,23 @@ func TestJSON(t *testing.T) {
 			Headers:    http.Header{},
 		},
 	}
-	b, err := json.Marshal(req)
+
+	var in bytes.Buffer
+	err := json.NewEncoder(&in).Encode(req)
 	if err != nil {
 		t.Fatal("Unable to marshal request")
 	}
 
-	in := bytes.NewReader(b)
-
 	var out, buf bytes.Buffer
-	JSONOut := &jsonOut{}
 
-	doJSONOnce(HandlerFunc(JSONHandler), buildCtx(), in, &out, JSONOut, req, &buf, make(http.Header))
+	doJSONOnce(HandlerFunc(JSONHandler), buildCtx(), &in, &out, &buf, make(http.Header))
+
+	JSONOut := &jsonOut{}
+	err = json.NewDecoder(&out).Decode(JSONOut)
+
+	if err != nil {
+		t.Fatal(err.Error())
+	}
 	if !strings.Contains(JSONOut.Body, "Hello john!") {
 		t.Fatalf("Output assertion mismatch. Expected: `Hello john!\n`. Actual: %v", JSONOut.Body)
 	}
@@ -98,11 +104,14 @@ func TestJSON(t *testing.T) {
 func TestFailedJSON(t *testing.T) {
 	dummyBody := "should fail with this"
 	in := strings.NewReader(dummyBody)
-	req := &jsonIn{}
-	JSONOut := &jsonOut{}
 
 	var out bytes.Buffer
-	doJSONOnce(HandlerFunc(JSONHandler), buildCtx(), in, &out, JSONOut, req, &bytes.Buffer{}, make(http.Header))
+	JSONOut := &jsonOut{}
+	doJSONOnce(HandlerFunc(JSONHandler), buildCtx(), in, &out, &bytes.Buffer{}, make(http.Header))
+	err := json.NewDecoder(&out).Decode(JSONOut)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
 	if JSONOut.StatusCode() != 500 {
 		t.Fatalf("Response code must equal to 500, but have: %v", JSONOut.StatusCode())
 	}
