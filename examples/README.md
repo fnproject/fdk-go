@@ -1,4 +1,4 @@
-# Hot Function Example
+# Hot JSON/HTTP Function Example
 
 The goal of the `fdk`'s are to make it just as easy to write a hot function as
 it is a cold one. The best way to showcase this is with an example.
@@ -18,6 +18,7 @@ Initialize the example with an image name you can access:
 ```sh
 fn init --runtime docker --format http --name <DOCKERHUB_USER/hot-go>
 ```
+as an alternative you can use `json` format, see corresponding [doc](https://github.com/fnproject/fn/blob/master/docs/function-format.md) for more info.
 
 Build and deploy the function to the Fn server (default localhost:8080)
 

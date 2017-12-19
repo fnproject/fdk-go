@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -78,6 +80,8 @@ func do(handler Handler, format string, in io.Reader, out io.Writer) {
 	switch format {
 	case "http":
 		doHTTP(handler, ctx, in, out)
+	case "json":
+		doJSON(handler, ctx, in, out)
 	case "default":
 		doDefault(handler, ctx, in, out)
 	default:
@@ -105,6 +109,70 @@ func doHTTP(handler Handler, ctx context.Context, in io.Reader, out io.Writer) {
 	for {
 		doHTTPOnce(handler, ctx, in, out, &buf, hdr)
 	}
+}
+
+func doJSON(handler Handler, ctx context.Context, in io.Reader, out io.Writer) {
+	var buf bytes.Buffer
+	hdr := make(http.Header)
+
+	for {
+		doJSONOnce(handler, ctx, in, out, &buf, hdr)
+	}
+}
+
+type callRequestHTTP struct {
+	Type       string      `json:"type"`
+	RequestURL string      `json:"request_url"`
+	Headers    http.Header `json:"headers"`
+}
+
+type jsonIn struct {
+	Body        string          `json:"body"`
+	ContentType string          `json:"content_type"`
+	CallID      string          `json:"call_id"`
+	Protocol    callRequestHTTP `json:"protocol"`
+}
+
+type callResponseHTTP struct {
+	StatusCode int         `json:"status_code,omitempty"`
+	Headers    http.Header `json:"headers,omitempty"`
+}
+
+type jsonOut struct {
+	Body        string           `json:"body"`
+	ContentType string           `json:"content_type"`
+	Protocol    callResponseHTTP `json:"protocol,omitempty"`
+}
+
+func doJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf *bytes.Buffer, hdr http.Header) {
+	buf.Reset()
+	resetHeaders(hdr)
+
+	var jsonResponse jsonOut
+	var jsonRequest jsonIn
+
+	resp := response{
+		Writer: buf,
+		status: 200,
+		header: hdr,
+	}
+
+	err := json.NewDecoder(in).Decode(&jsonRequest)
+	if err != nil {
+		jsonResponse.Protocol.StatusCode = 500
+		jsonResponse.Body = fmt.Sprintf(`{"error": %v}`, err.Error())
+	} else {
+		setHeaders(ctx, jsonRequest.Protocol.Headers)
+		//TODO(xxx): use FN_DEADLINE here
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		handler.Serve(ctx, strings.NewReader(jsonRequest.Body), &resp)
+		jsonResponse.Protocol.StatusCode = resp.status
+		jsonResponse.Body = buf.String()
+		jsonResponse.Protocol.Headers = resp.header
+	}
+
+	json.NewEncoder(out).Encode(jsonResponse)
 }
 
 func doHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf *bytes.Buffer, hdr http.Header) {
