@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -78,6 +80,8 @@ func do(handler Handler, format string, in io.Reader, out io.Writer) {
 	switch format {
 	case "http":
 		doHTTP(handler, ctx, in, out)
+	case "json":
+		doJSON(handler, ctx, in, out)
 	case "default":
 		doDefault(handler, ctx, in, out)
 	default:
@@ -105,6 +109,84 @@ func doHTTP(handler Handler, ctx context.Context, in io.Reader, out io.Writer) {
 	for {
 		doHTTPOnce(handler, ctx, in, out, &buf, hdr)
 	}
+}
+
+func doJSON(handler Handler, ctx context.Context, in io.Reader, out io.Writer) {
+	var buf bytes.Buffer
+	hdr := make(http.Header)
+
+	for {
+		doJSONOnce(handler, ctx, in, out, &buf, hdr)
+	}
+}
+
+type jsonio struct {
+	Body        string `json:"body"`
+	ContentType string `json:"content_type"`
+}
+
+type callRequestHTTP struct {
+	Type       string      `json:"type"`
+	RequestURL string      `json:"request_url"`
+	Headers    http.Header `json:"headers"`
+}
+
+type jsonIn struct {
+	jsonio
+	CallID   string           `json:"call_id"`
+	Protocol *callRequestHTTP `json:"protocol"`
+}
+
+type callResponseHTTP struct {
+	StatusCode int         `json:"status_code,omitempty"`
+	Headers    http.Header `json:"headers,omitempty"`
+}
+
+type jsonOut struct {
+	jsonio
+	Protocol *callResponseHTTP `json:"protocol,omitempty"`
+
+	io.Writer
+}
+
+func (out *jsonOut) Write(p []byte) (n int, err error) {
+	out.Body += string(p)
+	return len(p), nil
+}
+
+func (out *jsonOut) WriteStatus(status int) {
+	out.Protocol.StatusCode = status
+}
+
+func doJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf *bytes.Buffer, hdr http.Header) {
+	buf.Reset()
+	resetHeaders(hdr)
+
+	resp := &jsonOut{
+		jsonio: jsonio{
+			ContentType: "application/json",
+		},
+		Protocol: &callResponseHTTP{
+			StatusCode: 200,
+		},
+		Writer: buf,
+	}
+
+	req := &jsonIn{}
+	err := json.NewDecoder(in).Decode(req)
+	if err != nil {
+		resp.WriteStatus(500)
+		resp.Body = fmt.Sprintf(`{"error": %v}`, err.Error())
+	} else {
+		setHeaders(ctx, req.Protocol.Headers)
+		//TODO(xxx): use FN_DEADLINE here
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		handler.Serve(ctx, strings.NewReader(req.Body), resp)
+		resp.WriteStatus(200)
+	}
+
+	json.NewEncoder(out).Encode(resp)
 }
 
 func doHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf *bytes.Buffer, hdr http.Header) {

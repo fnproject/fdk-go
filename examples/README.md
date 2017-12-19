@@ -1,4 +1,4 @@
-# Hot Function Example
+# Hot JSON Function Example
 
 The goal of the `fdk`'s are to make it just as easy to write a hot function as
 it is a cold one. The best way to showcase this is with an example.

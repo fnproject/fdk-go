@@ -1,0 +1,6 @@
+name: fnproject/fdk-go-json
+version: 0.0.1
+runtime: go
+format: json
+timeout: 100
+path: /test-fdk-go-json
