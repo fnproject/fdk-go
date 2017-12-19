@@ -176,7 +176,6 @@ func doJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 	json.NewEncoder(out).Encode(jsonResponse)
 }
 
-
 func doHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf *bytes.Buffer, hdr http.Header) {
 	// TODO we need to set deadline on ctx here (need FN_DEADLINE header)
 	// for now, just get a new ctx each go round
