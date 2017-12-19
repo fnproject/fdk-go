@@ -71,6 +71,12 @@ func WriteStatus(out io.Writer, status int) {
 // through main() in a user's function and can handle communication between the
 // function and fn server via any of the supported formats.
 func Handle(handler Handler) {
+	// temporarily redirect Stdout to Stderr so that standard print calls
+	// don't interfere with output
+	origStdout := os.Stdout
+	os.Stdout = os.Stderr
+	defer func() { os.Stdout = origStdout }()
+
 	format, _ := os.LookupEnv("FN_FORMAT")
 	do(handler, format, os.Stdin, os.Stdout)
 }
