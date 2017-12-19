@@ -65,6 +65,10 @@ func JSONHandler(_ context.Context, in io.Reader, out io.Writer) {
 	}
 }
 
+func JSONWithStatusCode(_ context.Context, in io.Reader, out io.Writer) {
+	WriteStatus(out, 201)
+}
+
 func TestJSON(t *testing.T) {
 	req := &jsonIn{
 		`{"name":"john"}`,
@@ -96,8 +100,8 @@ func TestJSON(t *testing.T) {
 	if !strings.Contains(JSONOut.Body, "Hello john!") {
 		t.Fatalf("Output assertion mismatch. Expected: `Hello john!\n`. Actual: %v", JSONOut.Body)
 	}
-	if JSONOut.StatusCode() != 200 {
-		t.Fatalf("Response code must equal to 200, but have: %v", JSONOut.StatusCode())
+	if JSONOut.Protocol.StatusCode != 200 {
+		t.Fatalf("Response code must equal to 200, but have: %v", JSONOut.Protocol.StatusCode)
 	}
 }
 
@@ -105,15 +109,48 @@ func TestFailedJSON(t *testing.T) {
 	dummyBody := "should fail with this"
 	in := strings.NewReader(dummyBody)
 
-	var out bytes.Buffer
+	var out, buf bytes.Buffer
+
 	JSONOut := &jsonOut{}
-	doJSONOnce(HandlerFunc(JSONHandler), buildCtx(), in, &out, &bytes.Buffer{}, make(http.Header))
+	doJSONOnce(HandlerFunc(JSONHandler), buildCtx(), in, &out, &buf, make(http.Header))
 	err := json.NewDecoder(&out).Decode(JSONOut)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	if JSONOut.StatusCode() != 500 {
-		t.Fatalf("Response code must equal to 500, but have: %v", JSONOut.StatusCode())
+	if JSONOut.Protocol.StatusCode != 500 {
+		t.Fatalf("Response code must equal to 500, but have: %v", JSONOut.Protocol.StatusCode)
+	}
+}
+
+func TestJSONOverwriteStatusCode(t *testing.T) {
+	var out, buf bytes.Buffer
+	req := &jsonIn{
+		`{"name":"john"}`,
+		"application/json",
+		"someid",
+		callRequestHTTP{
+			Type:       "json",
+			RequestURL: "someURL",
+			Headers:    http.Header{},
+		},
+	}
+
+	var in bytes.Buffer
+	err := json.NewEncoder(&in).Encode(req)
+	if err != nil {
+		t.Fatal("Unable to marshal request")
+	}
+
+	doJSONOnce(HandlerFunc(JSONWithStatusCode), buildCtx(), &in, &out, &buf, make(http.Header))
+
+	JSONOut := &jsonOut{}
+	err = json.NewDecoder(&out).Decode(JSONOut)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if JSONOut.Protocol.StatusCode != 201 {
+		t.Fatalf("Response code must equal to 201, but have: %v", JSONOut.Protocol.StatusCode)
 	}
 }
 

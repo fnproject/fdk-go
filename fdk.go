@@ -144,14 +144,6 @@ type jsonOut struct {
 	Protocol    callResponseHTTP `json:"protocol,omitempty"`
 }
 
-func (out *jsonOut) StatusCode() int {
-	return out.Protocol.StatusCode
-}
-
-func (out *jsonOut) WriteStatus(status int) {
-	out.Protocol.StatusCode = status
-}
-
 func doJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf *bytes.Buffer, hdr http.Header) {
 	buf.Reset()
 	resetHeaders(hdr)
@@ -159,17 +151,23 @@ func doJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 	var jsonResponse jsonOut
 	var jsonRequest jsonIn
 
+	resp := response{
+		Writer: buf,
+		status: 200,
+		header: hdr,
+	}
+
 	err := json.NewDecoder(in).Decode(&jsonRequest)
 	if err != nil {
-		jsonResponse.WriteStatus(500)
+		jsonResponse.Protocol.StatusCode = 500
 		jsonResponse.Body = fmt.Sprintf(`{"error": %v}`, err.Error())
 	} else {
 		setHeaders(ctx, jsonRequest.Protocol.Headers)
 		//TODO(xxx): use FN_DEADLINE here
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
-		handler.Serve(ctx, strings.NewReader(jsonRequest.Body), buf)
-		jsonResponse.WriteStatus(200)
+		handler.Serve(ctx, strings.NewReader(jsonRequest.Body), &resp)
+		jsonResponse.Protocol.StatusCode = resp.status
 		jsonResponse.Body = buf.String()
 	}
 
