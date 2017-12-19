@@ -169,6 +169,7 @@ func doJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 		handler.Serve(ctx, strings.NewReader(jsonRequest.Body), &resp)
 		jsonResponse.Protocol.StatusCode = resp.status
 		jsonResponse.Body = buf.String()
+		jsonResponse.Protocol.Headers = resp.header
 	}
 
 	json.NewEncoder(out).Encode(jsonResponse)

@@ -66,6 +66,7 @@ func JSONHandler(_ context.Context, in io.Reader, out io.Writer) {
 }
 
 func JSONWithStatusCode(_ context.Context, in io.Reader, out io.Writer) {
+	SetHeader(out, "Content-Type", "application/json")
 	WriteStatus(out, 201)
 }
 
@@ -122,7 +123,7 @@ func TestFailedJSON(t *testing.T) {
 	}
 }
 
-func TestJSONOverwriteStatusCode(t *testing.T) {
+func TestJSONOverwriteStatusCodeAndHeaders(t *testing.T) {
 	var out, buf bytes.Buffer
 	req := &jsonIn{
 		`{"name":"john"}`,
@@ -151,6 +152,10 @@ func TestJSONOverwriteStatusCode(t *testing.T) {
 
 	if JSONOut.Protocol.StatusCode != 201 {
 		t.Fatalf("Response code must equal to 201, but have: %v", JSONOut.Protocol.StatusCode)
+	}
+	cType := JSONOut.Protocol.Headers.Get("Content-Type")
+	if !strings.Contains(cType, "application/json") {
+		t.Fatalf("Response content type should be application/json in this test, but have: %v", cType)
 	}
 }
 

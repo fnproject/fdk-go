@@ -7,7 +7,6 @@ import (
 	"io"
 
 	"github.com/fnproject/fdk-go"
-	"os"
 )
 
 func main() {
@@ -23,9 +22,13 @@ func myHandler(ctx context.Context, in io.Reader, out io.Writer) {
 	if person.Name == "" {
 		person.Name = "world"
 	}
-	body := fmt.Sprintf("Hello %s!\n", person.Name)
-	err := json.NewEncoder(out).Encode(body)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+	msg := struct {
+		Msg string `json:"msg"`
+	}{
+		Msg: fmt.Sprintf("Hello %s!\n", person.Name),
 	}
+
+	fdk.WriteStatus(out, 200)
+	json.NewEncoder(out).Encode(&msg)
+
 }
