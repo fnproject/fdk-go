@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
+	"os"
 	"strings"
 	"testing"
 )
@@ -47,7 +48,7 @@ func TestDefault(t *testing.T) {
 	}
 }
 
-func JSONHandler(ctx context.Context, in io.Reader, out io.Writer) {
+func JSONHandler(_ context.Context, in io.Reader, out io.Writer) {
 	var person struct {
 		Name string `json:"name"`
 	}
@@ -57,22 +58,19 @@ func JSONHandler(ctx context.Context, in io.Reader, out io.Writer) {
 		person.Name = "world"
 	}
 
-	out.Write([]byte(fmt.Sprintf("Hello %s!\n", person.Name)))
-}
-
-type testJSONOut struct {
-	jsonio
-	Protocol *callResponseHTTP `json:"protocol,omitempty"`
+	body := fmt.Sprintf("Hello %s!\n", person.Name)
+	err := json.NewEncoder(out).Encode(body)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+	}
 }
 
 func TestJSON(t *testing.T) {
-	req := jsonIn{
-		jsonio{
-			Body:        `{"name":"john"}`,
-			ContentType: "application/json",
-		},
+	req := &jsonIn{
+		`{"name":"john"}`,
+		"application/json",
 		"someid",
-		&callRequestHTTP{
+		callRequestHTTP{
 			Type:       "json",
 			RequestURL: "someURL",
 			Headers:    http.Header{},
@@ -84,31 +82,29 @@ func TestJSON(t *testing.T) {
 	}
 
 	in := bytes.NewReader(b)
-	var out bytes.Buffer
 
-	doJSONOnce(HandlerFunc(JSONHandler), buildCtx(), in, &out, &bytes.Buffer{}, make(http.Header))
-	output := &testJSONOut{}
-	err = json.Unmarshal(out.Bytes(), output)
-	if err != nil {
-		t.Fatalf("Unable to unmarshal response, err: %v", err)
+	var out, buf bytes.Buffer
+	JSONOut := &jsonOut{}
+
+	doJSONOnce(HandlerFunc(JSONHandler), buildCtx(), in, &out, JSONOut, req, &buf, make(http.Header))
+	if !strings.Contains(JSONOut.Body, "Hello john!") {
+		t.Fatalf("Output assertion mismatch. Expected: `Hello john!\n`. Actual: %v", JSONOut.Body)
 	}
-	if !strings.Contains(output.Body, "Hello john!") {
-		t.Fatalf("Output assertion mismatch. Expected: `Hello john!\n`. Actual: %v", output.Body)
-	}
-	if output.Protocol.StatusCode != 200 {
-		t.Fatalf("Response code must equal to 200, but have: %v", output.Protocol.StatusCode)
+	if JSONOut.StatusCode() != 200 {
+		t.Fatalf("Response code must equal to 200, but have: %v", JSONOut.StatusCode())
 	}
 }
 
 func TestFailedJSON(t *testing.T) {
 	dummyBody := "should fail with this"
 	in := strings.NewReader(dummyBody)
+	req := &jsonIn{}
+	JSONOut := &jsonOut{}
+
 	var out bytes.Buffer
-	doJSONOnce(HandlerFunc(JSONHandler), buildCtx(), in, &out, &bytes.Buffer{}, make(http.Header))
-	output := &testJSONOut{}
-	json.Unmarshal(out.Bytes(), output)
-	if output.Protocol.StatusCode != 500 {
-		t.Fatalf("Response code must equal to 500, but have: %v", output.Protocol.StatusCode)
+	doJSONOnce(HandlerFunc(JSONHandler), buildCtx(), in, &out, JSONOut, req, &bytes.Buffer{}, make(http.Header))
+	if JSONOut.StatusCode() != 500 {
+		t.Fatalf("Response code must equal to 500, but have: %v", JSONOut.StatusCode())
 	}
 }
 
