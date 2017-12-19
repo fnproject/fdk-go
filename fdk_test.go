@@ -95,6 +95,21 @@ func TestJSON(t *testing.T) {
 	if !strings.Contains(output.Body, "Hello john!") {
 		t.Fatalf("Output assertion mismatch. Expected: `Hello john!\n`. Actual: %v", output.Body)
 	}
+	if output.Protocol.StatusCode != 200 {
+		t.Fatalf("Response code must equal to 200, but have: %v", output.Protocol.StatusCode)
+	}
+}
+
+func TestFailedJSON(t *testing.T) {
+	dummyBody := "should fail with this"
+	in := strings.NewReader(dummyBody)
+	var out bytes.Buffer
+	doJSONOnce(HandlerFunc(JSONHandler), buildCtx(), in, &out, &bytes.Buffer{}, make(http.Header))
+	output := &testJSONOut{}
+	json.Unmarshal(out.Bytes(), output)
+	if output.Protocol.StatusCode != 500 {
+		t.Fatalf("Response code must equal to 500, but have: %v", output.Protocol.StatusCode)
+	}
 }
 
 func TestHTTP(t *testing.T) {
