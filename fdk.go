@@ -177,12 +177,11 @@ func doJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 }
 
 func ctxWithDeadline(ctx context.Context, fnDeadline string) (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithCancel(ctx)
 	t, err := time.Parse(time.RFC3339, fnDeadline)
 	if err == nil {
 		return context.WithDeadline(ctx, t)
 	}
-	return ctx, cancel
+	return context.WithCancel(ctx)
 }
 
 func doHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf *bytes.Buffer, hdr http.Header) {
