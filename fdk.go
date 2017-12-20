@@ -165,7 +165,7 @@ func doJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 	} else {
 		setHeaders(ctx, jsonRequest.Protocol.Headers)
 		fnDeadline := jsonRequest.Protocol.Headers.Get("FN_DEADLINE")
-		ctx, cancel := CtxWithDeadline(ctx, fnDeadline)
+		ctx, cancel := ctxWithDeadline(ctx, fnDeadline)
 		defer cancel()
 		handler.Serve(ctx, strings.NewReader(jsonRequest.Body), &resp)
 		jsonResponse.Protocol.StatusCode = resp.status
@@ -176,11 +176,11 @@ func doJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 	json.NewEncoder(out).Encode(jsonResponse)
 }
 
-func CtxWithDeadline(parent context.Context, fnDeadline string) (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithCancel(parent)
+func ctxWithDeadline(ctx context.Context, fnDeadline string) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(ctx)
 	t, err := time.Parse(time.RFC3339, fnDeadline)
 	if err == nil {
-		ctx, cancel = context.WithDeadline(ctx, t)
+		return context.WithDeadline(ctx, t)
 	}
 	return ctx, cancel
 }
@@ -201,7 +201,7 @@ func doHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 		io.WriteString(resp, err.Error())
 	} else {
 		fnDeadline := req.Header.Get("FN_DEADLINE")
-		ctx, cancel := CtxWithDeadline(ctx, fnDeadline)
+		ctx, cancel := ctxWithDeadline(ctx, fnDeadline)
 		defer cancel()
 		setHeaders(ctx, req.Header)
 		handler.Serve(ctx, req.Body, &resp)
