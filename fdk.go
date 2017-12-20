@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 type Handler interface {
@@ -163,8 +164,8 @@ func doJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 		jsonResponse.Body = fmt.Sprintf(`{"error": %v}`, err.Error())
 	} else {
 		setHeaders(ctx, jsonRequest.Protocol.Headers)
-		//TODO(xxx): use FN_DEADLINE here
-		ctx, cancel := context.WithCancel(ctx)
+		fnDeadline := jsonRequest.Protocol.Headers.Get("FN_DEADLINE")
+		ctx, cancel := ctxWithDeadline(ctx, fnDeadline)
 		defer cancel()
 		handler.Serve(ctx, strings.NewReader(jsonRequest.Body), &resp)
 		jsonResponse.Protocol.StatusCode = resp.status
@@ -175,12 +176,15 @@ func doJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 	json.NewEncoder(out).Encode(jsonResponse)
 }
 
-func doHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf *bytes.Buffer, hdr http.Header) {
-	// TODO we need to set deadline on ctx here (need FN_DEADLINE header)
-	// for now, just get a new ctx each go round
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+func ctxWithDeadline(ctx context.Context, fnDeadline string) (context.Context, context.CancelFunc) {
+	t, err := time.Parse(time.RFC3339, fnDeadline)
+	if err == nil {
+		return context.WithDeadline(ctx, t)
+	}
+	return context.WithCancel(ctx)
+}
 
+func doHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf *bytes.Buffer, hdr http.Header) {
 	buf.Reset()
 	resetHeaders(hdr)
 	resp := response{
@@ -195,6 +199,9 @@ func doHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 		resp.status = http.StatusInternalServerError
 		io.WriteString(resp, err.Error())
 	} else {
+		fnDeadline := req.Header.Get("FN_DEADLINE")
+		ctx, cancel := ctxWithDeadline(ctx, fnDeadline)
+		defer cancel()
 		setHeaders(ctx, req.Header)
 		handler.Serve(ctx, req.Body, &resp)
 	}
