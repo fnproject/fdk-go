@@ -108,7 +108,10 @@ func doHTTP(handler Handler, ctx context.Context, in io.Reader, out io.Writer) {
 	hdr := make(http.Header)
 
 	for {
-		doHTTPOnce(handler, ctx, in, out, &buf, hdr)
+		err := doHTTPOnce(handler, ctx, in, out, &buf, hdr)
+		if err != nil {
+			break
+		}
 	}
 }
 
@@ -117,7 +120,10 @@ func doJSON(handler Handler, ctx context.Context, in io.Reader, out io.Writer) {
 	hdr := make(http.Header)
 
 	for {
-		doJSONOnce(handler, ctx, in, out, &buf, hdr)
+		err := doJSONOnce(handler, ctx, in, out, &buf, hdr)
+		if err != nil {
+			break
+		}
 	}
 }
 
@@ -145,7 +151,7 @@ type jsonOut struct {
 	Protocol    callResponseHTTP `json:"protocol,omitempty"`
 }
 
-func doJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf *bytes.Buffer, hdr http.Header) {
+func doJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf *bytes.Buffer, hdr http.Header) error {
 	buf.Reset()
 	resetHeaders(hdr)
 
@@ -160,6 +166,10 @@ func doJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 
 	err := json.NewDecoder(in).Decode(&jsonRequest)
 	if err != nil {
+		// stdin now closed
+		if err == io.EOF {
+			return err
+		}
 		jsonResponse.Protocol.StatusCode = 500
 		jsonResponse.Body = fmt.Sprintf(`{"error": %v}`, err.Error())
 	} else {
@@ -174,6 +184,7 @@ func doJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 	}
 
 	json.NewEncoder(out).Encode(jsonResponse)
+	return nil
 }
 
 func ctxWithDeadline(ctx context.Context, fnDeadline string) (context.Context, context.CancelFunc) {
@@ -184,7 +195,7 @@ func ctxWithDeadline(ctx context.Context, fnDeadline string) (context.Context, c
 	return context.WithCancel(ctx)
 }
 
-func doHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf *bytes.Buffer, hdr http.Header) {
+func doHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf *bytes.Buffer, hdr http.Header) error {
 	buf.Reset()
 	resetHeaders(hdr)
 	resp := response{
@@ -195,6 +206,10 @@ func doHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 
 	req, err := http.ReadRequest(bufio.NewReader(in))
 	if err != nil {
+		// stdin now closed
+		if err == io.EOF {
+			return err
+		}
 		// TODO it would be nice if we could let the user format this response to their preferred style..
 		resp.status = http.StatusInternalServerError
 		io.WriteString(resp, err.Error())
@@ -216,6 +231,7 @@ func doHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 		Header:        resp.header,
 	}
 	hResp.Write(out)
+	return nil
 }
 
 func resetHeaders(m http.Header) {
