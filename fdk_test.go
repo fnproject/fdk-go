@@ -90,7 +90,10 @@ func TestJSON(t *testing.T) {
 
 	var out, buf bytes.Buffer
 
-	doJSONOnce(HandlerFunc(JSONHandler), buildCtx(), &in, &out, &buf, make(http.Header))
+	err = doJSONOnce(HandlerFunc(JSONHandler), buildCtx(), &in, &out, &buf, make(http.Header))
+	if err != nil {
+		t.Fatal("should not return error", err)
+	}
 
 	JSONOut := &jsonOut{}
 	err = json.NewDecoder(&out).Decode(JSONOut)
@@ -113,13 +116,26 @@ func TestFailedJSON(t *testing.T) {
 	var out, buf bytes.Buffer
 
 	JSONOut := &jsonOut{}
-	doJSONOnce(HandlerFunc(JSONHandler), buildCtx(), in, &out, &buf, make(http.Header))
-	err := json.NewDecoder(&out).Decode(JSONOut)
+	err := doJSONOnce(HandlerFunc(JSONHandler), buildCtx(), in, &out, &buf, make(http.Header))
+	if err != nil {
+		t.Fatal("should not return error", err)
+	}
+
+	err = json.NewDecoder(&out).Decode(JSONOut)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 	if JSONOut.Protocol.StatusCode != 500 {
 		t.Fatalf("Response code must equal to 500, but have: %v", JSONOut.Protocol.StatusCode)
+	}
+}
+
+func TestJSONEOF(t *testing.T) {
+	var in, out, buf bytes.Buffer
+
+	err := doJSONOnce(HandlerFunc(JSONHandler), buildCtx(), &in, &out, &buf, make(http.Header))
+	if err != io.EOF {
+		t.Fatal("should return EOF")
 	}
 }
 
@@ -142,7 +158,10 @@ func TestJSONOverwriteStatusCodeAndHeaders(t *testing.T) {
 		t.Fatal("Unable to marshal request")
 	}
 
-	doJSONOnce(HandlerFunc(JSONWithStatusCode), buildCtx(), &in, &out, &buf, make(http.Header))
+	err = doJSONOnce(HandlerFunc(JSONWithStatusCode), buildCtx(), &in, &out, &buf, make(http.Header))
+	if err != nil {
+		t.Fatal("should not return error", err)
+	}
 
 	JSONOut := &jsonOut{}
 	err = json.NewDecoder(&out).Decode(JSONOut)
@@ -167,7 +186,10 @@ func TestHTTP(t *testing.T) {
 
 	var out bytes.Buffer
 	ctx := buildCtx()
-	doHTTPOnce(HandlerFunc(echoHTTPHandler), ctx, in, &out, &bytes.Buffer{}, make(http.Header))
+	err := doHTTPOnce(HandlerFunc(echoHTTPHandler), ctx, in, &out, &bytes.Buffer{}, make(http.Header))
+	if err != nil {
+		t.Fatal("should not return error", err)
+	}
 
 	res, err := http.ReadResponse(bufio.NewReader(&out), nil)
 	if err != nil {
@@ -189,6 +211,18 @@ func TestHTTP(t *testing.T) {
 
 	if string(outBody) != bodyString {
 		t.Fatal("strings no matchy for http", string(outBody), bodyString)
+	}
+
+}
+
+func TestHTTPEOF(t *testing.T) {
+	var in bytes.Buffer
+	var out bytes.Buffer
+	ctx := buildCtx()
+
+	err := doHTTPOnce(HandlerFunc(echoHTTPHandler), ctx, &in, &out, &bytes.Buffer{}, make(http.Header))
+	if err != io.EOF {
+		t.Fatal("should return EOF")
 	}
 }
 
