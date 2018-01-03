@@ -1,24 +1,28 @@
-# Hot JSON/HTTP Function Example
+# Function Examples
 
 The goal of the `fdk`'s are to make it just as easy to write a hot function as
 it is a cold one. The best way to showcase this is with an example.
 
 This is an example of a hot function using the fdk-go bindings. The [hot function
 documentation](https://github.com/fnproject/fn/blob/master/docs/hot-functions.md)
-contains an analysis of how this example works under the hood.
+contains an analysis of how this example works under the hood. With any of the
+examples provided here, you may use any format to configure your functions in
+`fn` itself. Here we add instructions to set up functions with a 'hot' format.
 
 ### How to run the example
 
 Install the CLI tool, start a Fn server and run `docker login` to login to
 DockerHub. See the [front page](https://github.com/fnproject/fn) for
-instructions. 
+instructions.
 
 Initialize the example with an image name you can access:
 
 ```sh
-fn init --runtime docker --format http --name <DOCKERHUB_USER/hot-go>
+fn init --runtime docker --format http --name <DOCKERHUB_USER/image_name>
 ```
-as an alternative you can use `json` format, see corresponding [doc](https://github.com/fnproject/fn/blob/master/docs/function-format.md) for more info.
+
+`--format json` will also work here, or if your functions already use json
+then adding the fdk will be seamless.
 
 Build and deploy the function to the Fn server (default localhost:8080)
 
