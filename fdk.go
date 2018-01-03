@@ -94,7 +94,9 @@ func do(handler Handler, format string, in io.Reader, out io.Writer) {
 func doDefault(handler Handler, ctx context.Context, in io.Reader, out io.Writer) {
 	setHeaders(ctx, buildHeadersFromEnv())
 
-	// TODO we need to set deadline on ctx here (need FN_DEADLINE header)
+	ctx, cancel := ctxWithDeadline(ctx)
+	defer cancel()
+
 	handler.Serve(ctx, in, out)
 }
 
@@ -174,8 +176,7 @@ func doJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 		jsonResponse.Body = fmt.Sprintf(`{"error": %v}`, err.Error())
 	} else {
 		setHeaders(ctx, jsonRequest.Protocol.Headers)
-		fnDeadline := jsonRequest.Protocol.Headers.Get("FN_DEADLINE")
-		ctx, cancel := ctxWithDeadline(ctx, fnDeadline)
+		ctx, cancel := ctxWithDeadline(ctx)
 		defer cancel()
 		handler.Serve(ctx, strings.NewReader(jsonRequest.Body), &resp)
 		jsonResponse.Protocol.StatusCode = resp.status
@@ -187,7 +188,10 @@ func doJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 	return nil
 }
 
-func ctxWithDeadline(ctx context.Context, fnDeadline string) (context.Context, context.CancelFunc) {
+func ctxWithDeadline(ctx context.Context) (context.Context, context.CancelFunc) {
+	fdkCtx := Context(ctx)
+	fnDeadline := fdkCtx.Header.Get("FN_DEADLINE") // this is always in headers
+
 	t, err := time.Parse(time.RFC3339, fnDeadline)
 	if err == nil {
 		return context.WithDeadline(ctx, t)
@@ -214,8 +218,7 @@ func doHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 		resp.status = http.StatusInternalServerError
 		io.WriteString(resp, err.Error())
 	} else {
-		fnDeadline := req.Header.Get("FN_DEADLINE")
-		ctx, cancel := ctxWithDeadline(ctx, fnDeadline)
+		ctx, cancel := ctxWithDeadline(ctx)
 		defer cancel()
 		setHeaders(ctx, req.Header)
 		handler.Serve(ctx, req.Body, &resp)
@@ -259,13 +262,11 @@ var (
 		`FN_TYPE`:     struct{}{},
 	}
 
-	pres = [...]string{
-		`FN_PARAM`,
-		`FN_HEADER`,
-	}
+	headerPre = `FN_HEADER_`
 
 	exact = map[string]struct{}{
 		`FN_CALL_ID`:     struct{}{},
+		`FN_METHOD`:      struct{}{},
 		`FN_REQUEST_URL`: struct{}{},
 	}
 )
@@ -303,26 +304,30 @@ func buildHeadersFromEnv() http.Header {
 
 	for _, e := range env {
 		vs := strings.SplitN(e, "=", 2)
-		if !header(vs[0]) {
+		hdrKey := headerKey(vs[0])
+		if hdrKey == "" {
 			continue
 		}
 		if len(vs) < 2 {
 			vs = append(vs, "")
 		}
-		k := vs[0]
 		// rebuild these as 'http' headers
 		vs = strings.Split(vs[1], ", ")
-		hdr[k] = vs
+		for _, v := range vs {
+			hdr.Add(hdrKey, v)
+		}
 	}
 	return hdr
 }
 
-func header(key string) bool {
-	for _, pre := range pres {
-		if strings.HasPrefix(key, pre) {
-			return true
-		}
+// for getting headers out of env
+func headerKey(key string) string {
+	if strings.HasPrefix(key, headerPre) {
+		return strings.TrimPrefix(key, headerPre)
 	}
 	_, ok := exact[key]
-	return ok
+	if ok {
+		return key
+	}
+	return ""
 }
