@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -207,6 +208,10 @@ func doHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 		status: 200,
 		header: hdr,
 	}
+
+	io.Copy(buf, in)
+	in = bytes.NewReader(buf.Bytes())
+	log.Println(buf.String())
 
 	req, err := http.ReadRequest(bufio.NewReader(in))
 	if err != nil {
