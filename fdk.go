@@ -212,6 +212,7 @@ func doHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 	io.Copy(buf, in)
 	in = bytes.NewReader(buf.Bytes())
 	log.Println(buf.String())
+	buf.Reset()
 
 	req, err := http.ReadRequest(bufio.NewReader(in))
 	if err != nil {
