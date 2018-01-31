@@ -93,8 +93,9 @@ func do(handler Handler, format string, in io.Reader, out io.Writer) {
 // doDefault only runs once, since it is a 'cold' function
 func doDefault(handler Handler, ctx context.Context, in io.Reader, out io.Writer) {
 	setHeaders(ctx, buildHeadersFromEnv())
+	fnDeadline, _ := os.LookupEnv("FN_DEADLINE")
 
-	ctx, cancel := ctxWithDeadline(ctx)
+	ctx, cancel := ctxWithDeadline(ctx, fnDeadline)
 	defer cancel()
 
 	handler.Serve(ctx, in, out)
@@ -132,6 +133,7 @@ func doJSON(handler Handler, ctx context.Context, in io.Reader, out io.Writer) {
 type callRequestHTTP struct {
 	Type       string      `json:"type"`
 	RequestURL string      `json:"request_url"`
+	Method     string      `json:"method"`
 	Headers    http.Header `json:"headers"`
 }
 
@@ -139,6 +141,8 @@ type jsonIn struct {
 	Body        string          `json:"body"`
 	ContentType string          `json:"content_type"`
 	CallID      string          `json:"call_id"`
+	Deadline    string          `json:"deadline"`
+	Type        string          `json:"type"`
 	Protocol    callRequestHTTP `json:"protocol"`
 }
 
@@ -176,7 +180,7 @@ func doJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 		jsonResponse.Body = fmt.Sprintf(`{"error": %v}`, err.Error())
 	} else {
 		setHeaders(ctx, jsonRequest.Protocol.Headers)
-		ctx, cancel := ctxWithDeadline(ctx)
+		ctx, cancel := ctxWithDeadline(ctx, jsonRequest.Deadline)
 		defer cancel()
 		handler.Serve(ctx, strings.NewReader(jsonRequest.Body), &resp)
 		jsonResponse.Protocol.StatusCode = resp.status
@@ -188,10 +192,7 @@ func doJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 	return nil
 }
 
-func ctxWithDeadline(ctx context.Context) (context.Context, context.CancelFunc) {
-	fdkCtx := Context(ctx)
-	fnDeadline := fdkCtx.Header.Get("FN_DEADLINE") // this is always in headers
-
+func ctxWithDeadline(ctx context.Context, fnDeadline string) (context.Context, context.CancelFunc) {
 	t, err := time.Parse(time.RFC3339, fnDeadline)
 	if err == nil {
 		return context.WithDeadline(ctx, t)
@@ -218,7 +219,8 @@ func doHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 		resp.status = http.StatusInternalServerError
 		io.WriteString(resp, err.Error())
 	} else {
-		ctx, cancel := ctxWithDeadline(ctx)
+		fnDeadline := Context(ctx).Header.Get("FN_DEADLINE")
+		ctx, cancel := ctxWithDeadline(ctx, fnDeadline)
 		defer cancel()
 		setHeaders(ctx, req.Header)
 		handler.Serve(ctx, req.Body, &resp)

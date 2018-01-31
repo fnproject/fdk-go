@@ -75,8 +75,10 @@ func TestJSON(t *testing.T) {
 		`{"name":"john"}`,
 		"application/json",
 		"someid",
+		"2018-01-30T16:52:39.786Z",
+		"sync",
 		callRequestHTTP{
-			Type:       "json",
+			Type:       "http",
 			RequestURL: "someURL",
 			Headers:    http.Header{},
 		},
@@ -145,6 +147,8 @@ func TestJSONOverwriteStatusCodeAndHeaders(t *testing.T) {
 		`{"name":"john"}`,
 		"application/json",
 		"someid",
+		"2018-01-30T16:52:39.786Z",
+		"sync",
 		callRequestHTTP{
 			Type:       "json",
 			RequestURL: "someURL",
