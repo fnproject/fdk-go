@@ -120,37 +120,46 @@ type JsonOut struct {
 	Protocol    CallResponseHTTP `json:"protocol,omitempty"`
 }
 
+func getJSONResp(buf *bytes.Buffer, fnResp *Response, req *JsonIn) *JsonOut {
+
+	hResp := &JsonOut{
+		Body:        buf.String(),
+		ContentType: "",
+		Protocol: CallResponseHTTP{
+			StatusCode: fnResp.Status,
+			Headers:    fnResp.Header,
+		},
+	}
+
+	return hResp
+}
+
 func DoJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf *bytes.Buffer, hdr http.Header) error {
 	buf.Reset()
 	ResetHeaders(hdr)
-
-	var jsonResponse JsonOut
-	var jsonRequest JsonIn
-
 	resp := Response{
 		Writer: buf,
 		Status: 200,
 		Header: hdr,
 	}
 
+	var jsonRequest JsonIn
 	err := json.NewDecoder(in).Decode(&jsonRequest)
 	if err != nil {
 		// stdin now closed
 		if err == io.EOF {
 			return err
 		}
-		jsonResponse.Protocol.StatusCode = 500
-		jsonResponse.Body = fmt.Sprintf(`{"error": %v}`, err.Error())
+		resp.Status = http.StatusInternalServerError
+		io.WriteString(resp, fmt.Sprintf(`{"error": %v}`, err.Error()))
 	} else {
 		SetHeaders(ctx, jsonRequest.Protocol.Headers)
 		ctx, cancel := CtxWithDeadline(ctx, jsonRequest.Deadline)
 		defer cancel()
 		handler.Serve(ctx, strings.NewReader(jsonRequest.Body), &resp)
-		jsonResponse.Protocol.StatusCode = resp.Status
-		jsonResponse.Body = buf.String()
-		jsonResponse.Protocol.Headers = resp.Header
 	}
 
+	jsonResponse := getJSONResp(buf, &resp, &jsonRequest)
 	json.NewEncoder(out).Encode(jsonResponse)
 	return nil
 }
@@ -161,6 +170,23 @@ func CtxWithDeadline(ctx context.Context, fnDeadline string) (context.Context, c
 		return context.WithDeadline(ctx, t)
 	}
 	return context.WithCancel(ctx)
+}
+
+func getHTTPResp(buf *bytes.Buffer, fnResp *Response, req *http.Request) http.Response {
+
+	fnResp.Header.Set("Content-Length", strconv.Itoa(buf.Len()))
+
+	hResp := http.Response{
+		ProtoMajor:    1,
+		ProtoMinor:    1,
+		StatusCode:    fnResp.Status,
+		Request:       req,
+		Body:          ioutil.NopCloser(buf),
+		ContentLength: int64(buf.Len()),
+		Header:        fnResp.Header,
+	}
+
+	return hResp
 }
 
 func DoHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf *bytes.Buffer, hdr http.Header) error {
@@ -189,17 +215,7 @@ func DoHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 		handler.Serve(ctx, req.Body, &resp)
 	}
 
-	resp.Header.Set("Content-Length", strconv.Itoa(buf.Len()))
-
-	hResp := http.Response{
-		ProtoMajor:    1,
-		ProtoMinor:    1,
-		StatusCode:    resp.Status,
-		Request:       req,
-		Body:          ioutil.NopCloser(buf),
-		ContentLength: int64(buf.Len()),
-		Header:        resp.Header,
-	}
+	hResp := getHTTPResp(buf, &resp, req)
 	hResp.Write(out)
 	return nil
 }
