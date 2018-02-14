@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -187,6 +188,8 @@ func DoHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 		SetHeaders(ctx, req.Header)
 		handler.Serve(ctx, req.Body, &resp)
 	}
+
+	resp.Header.Set("Content-Length", strconv.Itoa(buf.Len()))
 
 	hResp := http.Response{
 		ProtoMajor:    1,
