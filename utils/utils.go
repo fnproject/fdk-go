@@ -120,7 +120,7 @@ type JsonOut struct {
 	Protocol    CallResponseHTTP `json:"protocol,omitempty"`
 }
 
-func getJSONResp(buf *bytes.Buffer, fnResp *Response, req *JsonIn) *JsonOut {
+func GetJSONResp(buf *bytes.Buffer, fnResp *Response, req *JsonIn) *JsonOut {
 
 	hResp := &JsonOut{
 		Body:        buf.String(),
@@ -159,7 +159,7 @@ func DoJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 		handler.Serve(ctx, strings.NewReader(jsonRequest.Body), &resp)
 	}
 
-	jsonResponse := getJSONResp(buf, &resp, &jsonRequest)
+	jsonResponse := GetJSONResp(buf, &resp, &jsonRequest)
 	json.NewEncoder(out).Encode(jsonResponse)
 	return nil
 }
@@ -172,7 +172,7 @@ func CtxWithDeadline(ctx context.Context, fnDeadline string) (context.Context, c
 	return context.WithCancel(ctx)
 }
 
-func getHTTPResp(buf *bytes.Buffer, fnResp *Response, req *http.Request) http.Response {
+func GetHTTPResp(buf *bytes.Buffer, fnResp *Response, req *http.Request) http.Response {
 
 	fnResp.Header.Set("Content-Length", strconv.Itoa(buf.Len()))
 
@@ -215,7 +215,7 @@ func DoHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 		handler.Serve(ctx, req.Body, &resp)
 	}
 
-	hResp := getHTTPResp(buf, &resp, req)
+	hResp := GetHTTPResp(buf, &resp, req)
 	hResp.Write(out)
 	return nil
 }
