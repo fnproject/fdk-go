@@ -80,8 +80,9 @@ func TestJSON(t *testing.T) {
 		Deadline:    "2018-01-30T16:52:39.786Z",
 		Protocol: utils.CallRequestHTTP{
 			Type:       "http",
-			RequestURL: "someURL",
+			RequestURL: "http://localhost:8080/r/myapp/yodawg",
 			Headers:    http.Header{},
+			Method:     "POST",
 		},
 	}
 
@@ -151,8 +152,9 @@ func TestJSONOverwriteStatusCodeAndHeaders(t *testing.T) {
 		Deadline:    "2018-01-30T16:52:39.786Z",
 		Protocol: utils.CallRequestHTTP{
 			Type:       "json",
-			RequestURL: "someURL",
+			RequestURL: "http://localhost:8080/r/myapp/yodawg",
 			Headers:    http.Header{},
+			Method:     "POST",
 		},
 	}
 
