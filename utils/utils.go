@@ -31,8 +31,10 @@ func WithContext(ctx context.Context, fnctx *Ctx) context.Context {
 
 // Ctx provides access to Config and Headers from fn.
 type Ctx struct {
-	Header http.Header
-	Config map[string]string
+	Header     http.Header
+	Config     map[string]string
+	RequestURL string
+	Method     string
 }
 
 type key struct{}
@@ -152,7 +154,10 @@ func DoJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 		resp.Status = http.StatusInternalServerError
 		io.WriteString(resp, fmt.Sprintf(`{"error": %v}`, err.Error()))
 	} else {
+
 		SetHeaders(ctx, jsonRequest.Protocol.Headers)
+		SetRequestURL(ctx, jsonRequest.Protocol.RequestURL)
+		SetMethod(ctx, jsonRequest.Protocol.Method)
 		ctx, cancel := CtxWithDeadline(ctx, jsonRequest.Deadline)
 		defer cancel()
 		handler.Serve(ctx, strings.NewReader(jsonRequest.Body), &resp)
@@ -210,7 +215,10 @@ func DoHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Write
 		fnDeadline := Context(ctx).Header.Get("FN_DEADLINE")
 		ctx, cancel := CtxWithDeadline(ctx, fnDeadline)
 		defer cancel()
+
 		SetHeaders(ctx, req.Header)
+		SetRequestURL(ctx, req.URL.String())
+		SetMethod(ctx, req.Method)
 		handler.Serve(ctx, req.Body, &resp)
 	}
 
@@ -256,6 +264,16 @@ var (
 func SetHeaders(ctx context.Context, hdr http.Header) {
 	fctx := ctx.Value(ctxKey).(*Ctx)
 	fctx.Header = hdr
+}
+
+func SetRequestURL(ctx context.Context, requestURL string) {
+	fctx := ctx.Value(ctxKey).(*Ctx)
+	fctx.RequestURL = requestURL
+}
+
+func SetMethod(ctx context.Context, method string) {
+	fctx := ctx.Value(ctxKey).(*Ctx)
+	fctx.Method = method
 }
 
 func BuildCtx() context.Context {
