@@ -18,7 +18,7 @@ type CloudEvent struct {
 	Source             string      `json:"source"`
 	EventType          string      `json:"eventType"`
 	EventTypeVersion   string      `json:"eventTypeVersion"`
-	EventTime          time.Time   `json:"eventTime"` // TODO: ensure rfc3339 format
+	EventTime          time.Time   `json:"eventTime"`
 	SchemaURL          string      `json:"schemaURL"`
 	ContentType        string      `json:"contentType"`
 	Data               interface{} `json:"data"` // from docs: the payload is encoded into a media format which is specified by the contentType attribute (e.g. application/json)
