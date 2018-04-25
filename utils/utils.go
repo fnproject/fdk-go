@@ -1,16 +1,11 @@
 package utils
 
 import (
-	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -48,6 +43,8 @@ func Do(handler Handler, format string, in io.Reader, out io.Writer) {
 		DoHTTP(handler, ctx, in, out)
 	case "json":
 		DoJSON(handler, ctx, in, out)
+	case "cloudevent":
+		DoCloudEvent(handler, ctx, in, out)
 	case "default":
 		DoDefault(handler, ctx, in, out)
 	default:
@@ -83,148 +80,12 @@ func DoHTTP(handler Handler, ctx context.Context, in io.Reader, out io.Writer) {
 	}
 }
 
-func DoJSON(handler Handler, ctx context.Context, in io.Reader, out io.Writer) {
-	var buf bytes.Buffer
-	hdr := make(http.Header)
-
-	for {
-		err := DoJSONOnce(handler, ctx, in, out, &buf, hdr)
-		if err != nil {
-			break
-		}
-	}
-}
-
-type CallRequestHTTP struct {
-	Type       string      `json:"type"`
-	RequestURL string      `json:"request_url"`
-	Method     string      `json:"method"`
-	Headers    http.Header `json:"headers"`
-}
-
-type JsonIn struct {
-	CallID      string          `json:"call_id"`
-	Deadline    string          `json:"deadline"`
-	Body        string          `json:"body"`
-	ContentType string          `json:"content_type"`
-	Protocol    CallRequestHTTP `json:"protocol"`
-}
-
-type CallResponseHTTP struct {
-	StatusCode int         `json:"status_code,omitempty"`
-	Headers    http.Header `json:"headers,omitempty"`
-}
-
-type JsonOut struct {
-	Body        string           `json:"body"`
-	ContentType string           `json:"content_type"`
-	Protocol    CallResponseHTTP `json:"protocol,omitempty"`
-}
-
-func GetJSONResp(buf *bytes.Buffer, fnResp *Response, req *JsonIn) *JsonOut {
-
-	hResp := &JsonOut{
-		Body:        buf.String(),
-		ContentType: "",
-		Protocol: CallResponseHTTP{
-			StatusCode: fnResp.Status,
-			Headers:    fnResp.Header,
-		},
-	}
-
-	return hResp
-}
-
-func DoJSONOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf *bytes.Buffer, hdr http.Header) error {
-	buf.Reset()
-	ResetHeaders(hdr)
-	resp := Response{
-		Writer: buf,
-		Status: 200,
-		Header: hdr,
-	}
-
-	var jsonRequest JsonIn
-	err := json.NewDecoder(in).Decode(&jsonRequest)
-	if err != nil {
-		// stdin now closed
-		if err == io.EOF {
-			return err
-		}
-		resp.Status = http.StatusInternalServerError
-		io.WriteString(resp, fmt.Sprintf(`{"error": %v}`, err.Error()))
-	} else {
-
-		SetHeaders(ctx, jsonRequest.Protocol.Headers)
-		SetRequestURL(ctx, jsonRequest.Protocol.RequestURL)
-		SetMethod(ctx, jsonRequest.Protocol.Method)
-		ctx, cancel := CtxWithDeadline(ctx, jsonRequest.Deadline)
-		defer cancel()
-		handler.Serve(ctx, strings.NewReader(jsonRequest.Body), &resp)
-	}
-
-	jsonResponse := GetJSONResp(buf, &resp, &jsonRequest)
-	json.NewEncoder(out).Encode(jsonResponse)
-	return nil
-}
-
 func CtxWithDeadline(ctx context.Context, fnDeadline string) (context.Context, context.CancelFunc) {
 	t, err := time.Parse(time.RFC3339, fnDeadline)
 	if err == nil {
 		return context.WithDeadline(ctx, t)
 	}
 	return context.WithCancel(ctx)
-}
-
-func GetHTTPResp(buf *bytes.Buffer, fnResp *Response, req *http.Request) http.Response {
-
-	fnResp.Header.Set("Content-Length", strconv.Itoa(buf.Len()))
-
-	hResp := http.Response{
-		ProtoMajor:    1,
-		ProtoMinor:    1,
-		StatusCode:    fnResp.Status,
-		Request:       req,
-		Body:          ioutil.NopCloser(buf),
-		ContentLength: int64(buf.Len()),
-		Header:        fnResp.Header,
-	}
-
-	return hResp
-}
-
-func DoHTTPOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf *bytes.Buffer, hdr http.Header) error {
-	buf.Reset()
-	ResetHeaders(hdr)
-	resp := Response{
-		Writer: buf,
-		Status: 200,
-		Header: hdr,
-	}
-
-	req, err := http.ReadRequest(bufio.NewReader(in))
-	if err != nil {
-		// stdin now closed
-		if err == io.EOF {
-			return err
-		}
-		// TODO it would be nice if we could let the user format this response to their preferred style..
-		resp.Status = http.StatusInternalServerError
-		io.WriteString(resp, err.Error())
-	} else {
-		fnDeadline := Context(ctx).Header.Get("FN_DEADLINE")
-		ctx, cancel := CtxWithDeadline(ctx, fnDeadline)
-		defer cancel()
-
-		SetHeaders(ctx, req.Header)
-		SetRequestURL(ctx, req.URL.String())
-		SetMethod(ctx, req.Method)
-		handler.Serve(ctx, req.Body, &resp)
-	}
-
-	hResp := GetHTTPResp(buf, &resp, req)
-	hResp.Write(out)
-	return nil
 }
 
 func ResetHeaders(m http.Header) {

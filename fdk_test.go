@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/fnproject/fdk-go/utils"
+	"time"
 )
 
 func echoHTTPHandler(_ context.Context, in io.Reader, out io.Writer) {
@@ -54,16 +55,20 @@ func JSONHandler(_ context.Context, in io.Reader, out io.Writer) {
 	var person struct {
 		Name string `json:"name"`
 	}
-	json.NewDecoder(in).Decode(&person)
-
-	if person.Name == "" {
-		person.Name = "world"
-	}
-
-	body := fmt.Sprintf("Hello %s!\n", person.Name)
-	err := json.NewEncoder(out).Encode(body)
+	err := json.NewDecoder(in).Decode(&person)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
+	} else {
+		if person.Name == "" {
+			person.Name = "world"
+		}
+
+		body := fmt.Sprintf("Hello %s!\n", person.Name)
+		SetHeader(out, "Content-Type", "application/json")
+		err = json.NewEncoder(out).Encode(body)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+		}
 	}
 }
 
@@ -243,4 +248,58 @@ func HTTPreq(t *testing.T, bod string) io.Reader {
 		t.Fatal(err)
 	}
 	return bytes.NewReader(byts)
+}
+
+func TestCloudEvent(t *testing.T) {
+	req := &utils.CloudEventIn{
+		CloudEvent: utils.CloudEvent{
+			EventID:          "someid",
+			Source:           "fn-api",
+			EventType:        "test-type",
+			EventTypeVersion: "1.0",
+			EventTime:        time.Now(),
+			ContentType:      "application/json",
+			Data:             `{"name": "John"}`,
+		},
+		Extensions: utils.CloudEventInExtension{
+			Deadline: "2018-01-30T16:52:39.786Z",
+			Protocol: utils.CallRequestHTTP{
+				Type:       "http",
+				RequestURL: "http://localhost:8080/r/myapp/yodawg",
+				Headers:    http.Header{},
+				Method:     "POST",
+			},
+		},
+	}
+
+	var in bytes.Buffer
+	err := json.NewEncoder(&in).Encode(req)
+	if err != nil {
+		t.Fatal("Unable to marshal request")
+	}
+	t.Log(in.String())
+	var out, buf bytes.Buffer
+
+	err = utils.DoCloudEventOnce(HandlerFunc(JSONHandler), utils.BuildCtx(), &in, &out, &buf, make(http.Header))
+	if err != nil {
+		t.Fatal("should not return error", err)
+	}
+
+	t.Log(out.String())
+	ceOut := &utils.CloudEventOut{}
+	err = json.NewDecoder(&out).Decode(ceOut)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if ceOut.Extensions.Protocol.StatusCode != 200 {
+		t.Fatalf("Response code must equal to 200, but have: %v", ceOut.Extensions.Protocol.StatusCode)
+	}
+
+	var respData string
+	json.Unmarshal([]byte(ceOut.Data.(string)), &respData)
+
+	if !strings.Contains(respData, "Hello John!\n") {
+		t.Fatalf("Output assertion mismatch. Expected: `Hello John!\n`. Actual: %v", ceOut.Data)
+	}
 }
