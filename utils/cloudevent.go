@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -85,7 +84,12 @@ func DoCloudEventOnce(handler Handler, ctx context.Context, in io.Reader, out io
 		ctx, cancel := CtxWithDeadline(ctx, ceIn.Extensions.Deadline)
 		defer cancel()
 
-		handler.Serve(ctx, strings.NewReader(ceIn.Data.(string)), &resp)
+		var buf bytes.Buffer
+		err = json.NewEncoder(&buf).Encode(ceIn.Data)
+		if err != nil {
+			return err
+		}
+		handler.Serve(ctx, &buf, &resp)
 	}
 	ceOut.EventID = ceIn.EventID
 	ceOut.EventTime = time.Now()
