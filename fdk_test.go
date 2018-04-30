@@ -250,7 +250,7 @@ func HTTPreq(t *testing.T, bod string) io.Reader {
 	return bytes.NewReader(byts)
 }
 
-func TestCloudEvent(t *testing.T) {
+func setupTestFromRequest(t *testing.T, data interface{}, contentType string) {
 	req := &utils.CloudEventIn{
 		CloudEvent: utils.CloudEvent{
 			EventID:          "someid",
@@ -258,8 +258,8 @@ func TestCloudEvent(t *testing.T) {
 			EventType:        "test-type",
 			EventTypeVersion: "1.0",
 			EventTime:        time.Now(),
-			ContentType:      "application/json",
-			Data:             `{"name": "John"}`,
+			ContentType:      contentType,
+			Data:             data,
 		},
 		Extensions: utils.CloudEventInExtension{
 			Deadline: "2018-01-30T16:52:39.786Z",
@@ -271,7 +271,6 @@ func TestCloudEvent(t *testing.T) {
 			},
 		},
 	}
-
 	var in bytes.Buffer
 	err := json.NewEncoder(&in).Encode(req)
 	if err != nil {
@@ -280,7 +279,8 @@ func TestCloudEvent(t *testing.T) {
 	t.Log(in.String())
 	var out, buf bytes.Buffer
 
-	err = utils.DoCloudEventOnce(HandlerFunc(JSONHandler), utils.BuildCtx(), &in, &out, &buf, make(http.Header))
+	err = utils.DoCloudEventOnce(HandlerFunc(JSONHandler), utils.BuildCtx(),
+		&in, &out, &buf, make(http.Header))
 	if err != nil {
 		t.Fatal("should not return error", err)
 	}
@@ -302,4 +302,18 @@ func TestCloudEvent(t *testing.T) {
 	if !strings.Contains(respData, "Hello John!\n") {
 		t.Fatalf("Output assertion mismatch. Expected: `Hello John!\n`. Actual: %v", ceOut.Data)
 	}
+}
+
+func TestCloudEventWithJSONData(t *testing.T) {
+	data := map[string]string{
+		"name": "John",
+	}
+	contentType := "application/json"
+	setupTestFromRequest(t, data, contentType)
+}
+
+func TestCloudEventWithStringData(t *testing.T) {
+	data := `{"name":"John"}`
+	contentType := "text/plain"
+	setupTestFromRequest(t, data, contentType)
 }
