@@ -50,9 +50,8 @@ func writeError(ceOut *CloudEventOut, err error) {
 	ceOut.EventTime = time.Now()
 }
 
-func DoCloudEventOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf, inBody *bytes.Buffer, hdr http.Header) error {
+func DoCloudEventOnce(handler Handler, ctx context.Context, in io.Reader, out io.Writer, buf *bytes.Buffer, hdr http.Header) error {
 	buf.Reset()
-	inBody.Reset()
 	ResetHeaders(hdr)
 	resp := Response{
 		Writer: buf,
@@ -87,9 +86,10 @@ func DoCloudEventOnce(handler Handler, ctx context.Context, in io.Reader, out io
 		defer cancel()
 
 		if ceIn.ContentType == "application/json" {
+			buf.Reset()
 			data := ceIn.Data.(map[string]interface{})
-			err = json.NewEncoder(inBody).Encode(data)
-			handler.Serve(ctx, inBody, &resp)
+			err = json.NewEncoder(buf).Encode(data)
+			handler.Serve(ctx, buf, &resp)
 		} else {
 			handler.Serve(ctx, strings.NewReader(ceIn.Data.(string)), &resp)
 		}
@@ -104,11 +104,10 @@ func DoCloudEventOnce(handler Handler, ctx context.Context, in io.Reader, out io
 
 func DoCloudEvent(handler Handler, ctx context.Context, in io.Reader, out io.Writer) {
 	var buf bytes.Buffer
-	var inBody bytes.Buffer
 	hdr := make(http.Header)
 
 	for {
-		err := DoCloudEventOnce(handler, ctx, in, out, &buf, &inBody, hdr)
+		err := DoCloudEventOnce(handler, ctx, in, out, &buf, hdr)
 		if err != nil {
 			log.Println(err.Error())
 			break

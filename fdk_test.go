@@ -277,10 +277,10 @@ func setupTestFromRequest(t *testing.T, data interface{}, contentType string) {
 		t.Fatal("Unable to marshal request")
 	}
 	t.Log(in.String())
-	var out, buf, inBody bytes.Buffer
+	var out, buf bytes.Buffer
 
 	err = utils.DoCloudEventOnce(HandlerFunc(JSONHandler), utils.BuildCtx(),
-		&in, &out, &buf, &inBody, make(http.Header))
+		&in, &out, &buf, make(http.Header))
 	if err != nil {
 		t.Fatal("should not return error", err)
 	}
