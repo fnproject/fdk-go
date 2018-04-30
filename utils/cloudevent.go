@@ -86,10 +86,11 @@ func DoCloudEventOnce(handler Handler, ctx context.Context, in io.Reader, out io
 		defer cancel()
 
 		if ceIn.ContentType == "application/json" {
-			buf.Reset()
 			data := ceIn.Data.(map[string]interface{})
 			err = json.NewEncoder(buf).Encode(data)
-			handler.Serve(ctx, buf, &resp)
+			in := strings.NewReader(buf.String()) // string is immutable, we need a copy
+			buf.Reset()
+			handler.Serve(ctx, in, &resp)
 		} else {
 			handler.Serve(ctx, strings.NewReader(ceIn.Data.(string)), &resp)
 		}
