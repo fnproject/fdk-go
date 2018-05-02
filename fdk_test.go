@@ -55,20 +55,16 @@ func JSONHandler(_ context.Context, in io.Reader, out io.Writer) {
 	var person struct {
 		Name string `json:"name"`
 	}
-	err := json.NewDecoder(in).Decode(&person)
+	json.NewDecoder(in).Decode(&person)
+	if person.Name == "" {
+		person.Name = "world"
+	}
+
+	body := fmt.Sprintf("Hello %s!\n", person.Name)
+	SetHeader(out, "Content-Type", "application/json")
+	err := json.NewEncoder(out).Encode(body)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
-	} else {
-		if person.Name == "" {
-			person.Name = "world"
-		}
-
-		body := fmt.Sprintf("Hello %s!\n", person.Name)
-		SetHeader(out, "Content-Type", "application/json")
-		err = json.NewEncoder(out).Encode(body)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-		}
 	}
 }
 
@@ -250,7 +246,7 @@ func HTTPreq(t *testing.T, bod string) io.Reader {
 	return bytes.NewReader(byts)
 }
 
-func setupTestFromRequest(t *testing.T, data interface{}, contentType string) {
+func setupTestFromRequest(t *testing.T, data interface{}, contentType, nameTest string) {
 	req := &utils.CloudEventIn{
 		CloudEvent: utils.CloudEvent{
 			EventID:          "someid",
@@ -299,8 +295,8 @@ func setupTestFromRequest(t *testing.T, data interface{}, contentType string) {
 	var respData string
 	json.Unmarshal([]byte(ceOut.Data.(string)), &respData)
 
-	if !strings.Contains(respData, "Hello John!\n") {
-		t.Fatalf("Output assertion mismatch. Expected: `Hello John!\n`. Actual: %v", ceOut.Data)
+	if respData != "Hello "+nameTest+"!\n" {
+		t.Fatalf("Output assertion mismatch. Expected: `Hello %v!\n`. Actual: %v", nameTest, ceOut.Data)
 	}
 }
 
@@ -309,11 +305,18 @@ func TestCloudEventWithJSONData(t *testing.T) {
 		"name": "John",
 	}
 	contentType := "application/json"
-	setupTestFromRequest(t, data, contentType)
+	setupTestFromRequest(t, data, contentType, "John")
 }
 
 func TestCloudEventWithStringData(t *testing.T) {
 	data := `{"name":"John"}`
 	contentType := "text/plain"
-	setupTestFromRequest(t, data, contentType)
+	setupTestFromRequest(t, data, contentType, "John")
+}
+
+func TestCloudEventWithPerfectlyValidJSONValue(t *testing.T) {
+	// https://tools.ietf.org/html/rfc7159#section-3
+	data := false
+	contentType := "application/json"
+	setupTestFromRequest(t, data, contentType, "world")
 }
