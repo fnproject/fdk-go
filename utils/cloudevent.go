@@ -86,8 +86,8 @@ func DoCloudEventOnce(handler Handler, ctx context.Context, in io.Reader, out io
 		defer cancel()
 
 		if ceIn.ContentType == "application/json" {
-			data := ceIn.Data.(map[string]interface{})
-			err = json.NewEncoder(buf).Encode(data)
+			// TODO this is lame, need to make FDK cloud event native and not io.Reader
+			err = json.NewEncoder(buf).Encode(ceIn.Data)
 			in := strings.NewReader(buf.String()) // string is immutable, we need a copy
 			buf.Reset()
 			handler.Serve(ctx, in, &resp)
