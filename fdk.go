@@ -78,5 +78,12 @@ func WriteStatus(out io.Writer, status int) {
 // function and fn server via any of the supported formats.
 func Handle(handler Handler) {
 	format, _ := os.LookupEnv("FN_FORMAT")
+
+	path := os.Getenv("FN_LISTENER")
+	if path != "" {
+		utils.StartHTTPServer(handler, path, format)
+		return
+	}
+
 	utils.Do(handler, format, os.Stdin, os.Stdout)
 }
