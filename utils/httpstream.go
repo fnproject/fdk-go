@@ -46,10 +46,6 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func StartHTTPServer(handler Handler, path, format string) {
 
-	if format != "httpstream" {
-		panic("expecting httpstream, invalid format: " + format)
-	}
-
 	tokens := strings.Split(path, ":")
 	if len(tokens) != 2 {
 		panic("cannot process listener path: " + path)
