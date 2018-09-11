@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"syscall"
 )
 
 type HTTPHandler struct {
@@ -46,22 +45,34 @@ func StartHTTPServer(handler Handler, path, format string) {
 	}
 
 	// try to remove pre-existing UDS: ignore errors here
-	var oldmask int
+	phonySock := "/tmp/phonyfn.sock"
 	if uri.Scheme == "unix" {
-		os.Remove(uri.Path)
-
-		// this will give user perms to write to the sock file
-		oldmask = syscall.Umask(0000)
+		os.Remove(phonySock)
 	}
 
-	listener, err := net.Listen(uri.Scheme, uri.Path)
+	listener, err := net.Listen(uri.Scheme, phonySock)
 	if err != nil {
 		log.Fatalln("net.Listen error: ", err)
 	}
 
 	if uri.Scheme == "unix" {
-		// set this back after we create the socket file. (of course there's a race, but who will ever hit it?)
-		syscall.Umask(oldmask)
+		// somehow this is the best way to get a permissioned sock file, don't ask questions, life is sad and meaningless
+		f, err := os.Create(phonySock)
+		if err != nil {
+			log.Fatalln("error creating sock file", err)
+		}
+
+		err = f.Chmod(0666)
+		if err != nil {
+			f.Close()
+			log.Fatalln("error giving sock file a perm", err)
+		}
+		f.Close()
+
+		err = os.Symlink(uri.Path, phonySock)
+		if err != nil {
+			log.Fatalln("error giving sock file a perm", err)
+		}
 	}
 
 	err = server.Serve(listener)
