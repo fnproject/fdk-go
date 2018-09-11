@@ -46,16 +46,22 @@ func StartHTTPServer(handler Handler, path, format string) {
 	}
 
 	// try to remove pre-existing UDS: ignore errors here
+	var oldmask int
 	if uri.Scheme == "unix" {
 		os.Remove(uri.Path)
 
 		// this will give user perms to write to the sock file
-		syscall.Umask(0000)
+		oldmask = syscall.Umask(0000)
 	}
 
 	listener, err := net.Listen(uri.Scheme, uri.Path)
 	if err != nil {
 		log.Fatalln("net.Listen error: ", err)
+	}
+
+	if uri.Scheme == "unix" {
+		// set this back after we create the socket file. (of course there's a race, but who will ever hit it?)
+		syscall.Umask(oldmask)
 	}
 
 	err = server.Serve(listener)
