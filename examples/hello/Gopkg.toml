@@ -21,5 +21,5 @@
 
 
 [[constraint]]
-  revision = "b7dbe300389ea75640ba4a220475decf2997fae9"
+  branch = "master"
   name = "github.com/fnproject/fdk-go"

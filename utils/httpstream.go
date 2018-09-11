@@ -1,10 +1,12 @@
 package utils
 
 import (
+	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
-	"strings"
+	"syscall"
 )
 
 type HTTPHandler struct {
@@ -32,9 +34,9 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func StartHTTPServer(handler Handler, path, format string) {
 
-	tokens := strings.Split(path, ":")
-	if len(tokens) != 2 {
-		panic("cannot process listener path: " + path)
+	uri, err := url.Parse(path)
+	if err != nil {
+		log.Fatalln("url parse error: ", path, err)
 	}
 
 	server := http.Server{
@@ -44,17 +46,20 @@ func StartHTTPServer(handler Handler, path, format string) {
 	}
 
 	// try to remove pre-existing UDS: ignore errors here
-	if tokens[0] == "unix" {
-		os.Remove(tokens[1])
+	if uri.Scheme == "unix" {
+		os.Remove(uri.Path)
+
+		// this will give user perms to write to the sock file
+		syscall.Umask(0000)
 	}
 
-	listener, err := net.Listen(tokens[0], tokens[1])
+	listener, err := net.Listen(uri.Scheme, uri.Path)
 	if err != nil {
-		panic("net.Listen error: " + err.Error())
+		log.Fatalln("net.Listen error: ", err)
 	}
 
 	err = server.Serve(listener)
 	if err != nil && err != http.ErrServerClosed {
-		panic("server.Serve error: " + err.Error())
+		log.Fatalln("serve error: ", err)
 	}
 }
