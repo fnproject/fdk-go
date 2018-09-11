@@ -1,12 +1,9 @@
 package utils
 
 import (
-	"bytes"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -15,21 +12,9 @@ type HTTPHandler struct {
 }
 
 func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
-	var buf bytes.Buffer
-	hdr := make(http.Header)
-
 	ctx := WithContext(r.Context(), &Ctx{
 		Config: BuildConfig(),
 	})
-
-	buf.Reset()
-	ResetHeaders(hdr)
-	resp := Response{
-		Writer: &buf,
-		Status: 200,
-		Header: hdr,
-	}
 
 	fnDeadline := Context(ctx).Header.Get("FN_DEADLINE")
 	ctx, cancel := CtxWithDeadline(ctx, fnDeadline)
@@ -38,10 +23,11 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	SetHeaders(ctx, r.Header)
 	SetRequestURL(ctx, r.URL.String())
 	SetMethod(ctx, r.Method)
-	h.handler.Serve(ctx, r.Body, &resp)
+	h.handler.Serve(ctx, r.Body, w)
 
-	hResp := GetHTTPStreamResp(&buf, &resp, r)
-	hResp.Write(w)
+	// TODO can we get away with no buffer? set content length is 'nice' but they
+	// can do it if they really need to... i lack ideas, now that we have a real
+	// resp writer tho it's really worth considering.
 }
 
 func StartHTTPServer(handler Handler, path, format string) {
@@ -71,21 +57,4 @@ func StartHTTPServer(handler Handler, path, format string) {
 	if err != nil && err != http.ErrServerClosed {
 		panic("server.Serve error: " + err.Error())
 	}
-}
-
-func GetHTTPStreamResp(buf *bytes.Buffer, fnResp *Response, req *http.Request) http.Response {
-
-	fnResp.Header.Set("Content-Length", strconv.Itoa(buf.Len()))
-
-	hResp := http.Response{
-		ProtoMajor:    1,
-		ProtoMinor:    1,
-		StatusCode:    fnResp.Status,
-		Request:       req,
-		Body:          ioutil.NopCloser(buf),
-		ContentLength: int64(buf.Len()),
-		Header:        fnResp.Header,
-	}
-
-	return hResp
 }
