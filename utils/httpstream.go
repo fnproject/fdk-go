@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime"
 )
 
 type HTTPHandler struct {
@@ -56,27 +57,34 @@ func StartHTTPServer(handler Handler, path, format string) {
 	}
 
 	if uri.Scheme == "unix" {
-		// somehow this is the best way to get a permissioned sock file, don't ask questions, life is sad and meaningless
-		f, err := os.Create(phonySock)
-		if err != nil {
-			log.Fatalln("error creating sock file", err)
-		}
-
-		err = f.Chmod(0666)
-		if err != nil {
-			f.Close()
-			log.Fatalln("error giving sock file a perm", err)
-		}
-		f.Close()
-
-		err = os.Symlink(uri.Path, phonySock)
-		if err != nil {
-			log.Fatalln("error giving sock file a perm", err)
-		}
+		sockPerm(phonySock, uri.Path)
 	}
 
 	err = server.Serve(listener)
 	if err != nil && err != http.ErrServerClosed {
 		log.Fatalln("serve error: ", err)
+	}
+}
+
+func sockPerm(phonySock, realSock string) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	// somehow this is the best way to get a permissioned sock file, don't ask questions, life is sad and meaningless
+	f, err := os.Create(phonySock)
+	if err != nil {
+		log.Fatalln("error creating sock file", err)
+	}
+
+	err = f.Chmod(0666)
+	if err != nil {
+		f.Close()
+		log.Fatalln("error giving sock file a perm", err)
+	}
+	f.Close()
+
+	err = os.Symlink(realSock, phonySock)
+	if err != nil {
+		log.Fatalln("error giving sock file a perm", err)
 	}
 }
