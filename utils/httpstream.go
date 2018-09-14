@@ -47,7 +47,7 @@ func StartHTTPServer(handler Handler, path, format string) {
 	}
 
 	// try to remove pre-existing UDS: ignore errors here
-	phonySock := filepath.Dir(uri.Path) + "phony" + filepath.Base(uri.Path)
+	phonySock := filepath.Join(filepath.Dir(uri.Path), "phony"+filepath.Base(uri.Path))
 	if uri.Scheme == "unix" {
 		os.Remove(phonySock)
 	}
