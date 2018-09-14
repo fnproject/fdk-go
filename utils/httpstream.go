@@ -72,17 +72,10 @@ func sockPerm(phonySock, realSock string) {
 	defer runtime.UnlockOSThread()
 
 	// somehow this is the best way to get a permissioned sock file, don't ask questions, life is sad and meaningless
-	f, err := os.Create(phonySock)
+	err := os.Chmod(phonySock, 0666)
 	if err != nil {
-		log.Fatalln("error creating sock file", err)
-	}
-
-	err = f.Chmod(0666)
-	if err != nil {
-		f.Close()
 		log.Fatalln("error giving sock file a perm", err)
 	}
-	f.Close()
 
 	err = os.Symlink(realSock, phonySock)
 	if err != nil {
