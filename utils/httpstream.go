@@ -72,19 +72,20 @@ func encapHeaders(fn http.ResponseWriter, user Response) {
 
 // TODO can make this the primary means of context construction
 func decapHeaders(ctx context.Context, r *http.Request) (_ context.Context, cancel func()) {
-	// XXX(reed): could make a new header bucket to dump things into instead of futzing
-
 	rctx := Context(ctx)
 	var deadline string
 
+	// copy the original headers in then reduce for http headers
+	rctx.Header = r.Header
+	rctx.HTTPHeader = make(http.Header, len(r.Header)) // XXX(reed): oversized, esp if not http
+
+	// find things we need, and for http headers add them to the httph bucket
+
 	for k, vs := range r.Header {
 		switch k {
-		// XXX(reed): we should strip out request url and method too but for invoke they don't exist...
 		case "Fn-Deadline":
-			r.Header.Del(k)
 			deadline = vs[0]
 		case "Fn-Call-Id":
-			r.Header.Del(k)
 			rctx.callId = vs[0]
 		case "Content-Type":
 			// just leave this one instead of deleting
@@ -95,11 +96,8 @@ func decapHeaders(ctx context.Context, r *http.Request) (_ context.Context, canc
 		if !strings.HasPrefix(k, "Fn-Http-") {
 			// XXX(reed): we need 2 header buckets on ctx, one for these and one for the 'original req' headers
 			// for now just nuke so the headers are clean...
-			r.Header.Del(k)
 			continue
 		}
-
-		r.Header.Del(k)
 
 		switch {
 		case k == "Fn-Http-Request-Url":
@@ -108,7 +106,7 @@ func decapHeaders(ctx context.Context, r *http.Request) (_ context.Context, canc
 			rctx.Method = vs[0]
 		case strings.HasPrefix(k, "Fn-Http-H-"):
 			for _, v := range vs {
-				r.Header.Add(strings.TrimPrefix(k, "Fn-Http-H-"), v)
+				rctx.HTTPHeader.Add(strings.TrimPrefix(k, "Fn-Http-H-"), v)
 			}
 		default:
 			// XXX(reed): just delete it? how is it here? maybe log/panic
