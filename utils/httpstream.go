@@ -92,7 +92,7 @@ func decapHeaders(ctx context.Context, r *http.Request) (_ context.Context, canc
 			continue
 		}
 
-		if !strings.HasPrefix(k, "Fn-Http-H-") {
+		if !strings.HasPrefix(k, "Fn-Http-") {
 			// XXX(reed): we need 2 header buckets on ctx, one for these and one for the 'original req' headers
 			// for now just nuke so the headers are clean...
 			r.Header.Del(k)
@@ -100,8 +100,18 @@ func decapHeaders(ctx context.Context, r *http.Request) (_ context.Context, canc
 		}
 
 		r.Header.Del(k)
-		for _, v := range vs {
-			r.Header.Add(strings.TrimPrefix(k, "Fn-Http-H-"), v)
+
+		switch {
+		case k == "Fn-Http-Request-Url":
+			rctx.RequestURL = vs[0]
+		case k == "Fn-Http-Method":
+			rctx.Method = vs[0]
+		case strings.HasPrefix(k, "Fn-Http-H-"):
+			for _, v := range vs {
+				r.Header.Add(strings.TrimPrefix(k, "Fn-Http-H-"), v)
+			}
+		default:
+			// XXX(reed): just delete it? how is it here? maybe log/panic
 		}
 	}
 
