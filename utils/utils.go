@@ -30,7 +30,14 @@ type Ctx struct {
 	Config     map[string]string
 	RequestURL string
 	Method     string
+
+	// XXX(reed): we should get req url / method out and rebuild the actual request too?
+	// XXX(reed): we should change go fdk handler to http.Handler instead of fdk handler fo real
+	// XXX(reed): should strip out eg FN_APP_NAME, etc as fields so Config is actually the config not config + fn's env vars
+	callId string
 }
+
+func (c Ctx) CallId() string { return c.callId }
 
 type key struct{}
 
