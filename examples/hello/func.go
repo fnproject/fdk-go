@@ -22,6 +22,8 @@ func myHandler(ctx context.Context, in io.Reader, out io.Writer) {
 		person.Name = "World"
 	}
 
+	fdk.SetHeader(out, "Content-Type", "application/json")
+
 	msg := struct {
 		Msg string `json:"message"`
 	}{
