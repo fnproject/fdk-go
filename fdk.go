@@ -26,6 +26,42 @@ func (f HandlerFunc) Serve(ctx context.Context, in io.Reader, out io.Writer) {
 	f(ctx, in, out)
 }
 
+// HTTPHandler makes a Handler from an http.Handler, if the function invocation
+// is from an http trigger the request is identical to the client request to the
+// http gateway (sans some hop headers).
+func HTTPHandler(h http.Handler) Handler {
+	return &httpHandlerFunc{h}
+}
+
+type httpHandlerFunc struct {
+	http.Handler
+}
+
+// Serve implements Handler
+func (f *httpHandlerFunc) Serve(ctx context.Context, in io.Reader, out io.Writer) {
+	reqURL := "http://localhost/invoke"
+	reqMethod := "POST"
+	if ctx, ok := GetContext(ctx).(HTTPContext); ok {
+		reqURL = ctx.RequestURL()
+		reqMethod = ctx.RequestMethod()
+	}
+
+	req, err := http.NewRequest(reqMethod, reqURL, in)
+	if err != nil {
+		panic("cannot re-create request from context")
+	}
+
+	req.Header = GetContext(ctx).Header()
+	req = req.WithContext(ctx)
+
+	rw, ok := out.(http.ResponseWriter)
+	if !ok {
+		panic("output is not a response writer, this was poorly planned please yell at me")
+	}
+
+	f.ServeHTTP(rw, req)
+}
+
 // GetContext will return an fdk Context that can be used to read configuration and
 // request information from an incoming request.
 func GetContext(ctx context.Context) Context {
