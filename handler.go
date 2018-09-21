@@ -154,6 +154,10 @@ func startHTTPServer(ctx context.Context, handler Handler, path string) {
 		log.Fatalln("url parse error: ", path, err)
 	}
 
+	if uri.Scheme != "unix" || uri.Path == "" {
+		log.Fatalln("url scheme must be unix with a valid path, got: ", uri.String())
+	}
+
 	server := http.Server{
 		Handler: &httpHandler{
 			handler: handler,
