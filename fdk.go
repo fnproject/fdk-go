@@ -45,20 +45,23 @@ var ctxKey = new(key)
 // Context contains all configuration for a function invocation
 type Context interface {
 	// Config is a map of all env vars set on a function, the base set of fn
-	// headers in addition to any app and function configuration.
+	// headers in addition to any app and function configuration
 	Config() map[string]string
 
 	// Header are the headers sent to this function invocation
 	Header() http.Header
 
 	// ContentType is Header().Get("Content-Type") but with 15 less chars, you are welcome
-	// XXX(discuss): is this necessary? Header.Get("Content-Type") is easy enough for a caveman...
 	ContentType() string
 
 	// CallID is the call id for this function invocation
 	CallID() string
 
-	// TODO should we unwind all known env var fields as methods here, as well?
+	// AppName is Config()["FN_APP_ID"]
+	AppID() string
+
+	// FnID is Config()["FN_FN_ID"]
+	FnID() string
 }
 
 // HTTPContext contains all configuration for a function invocation sourced
@@ -90,8 +93,10 @@ type httpCtx struct {
 
 func (c baseCtx) Config() map[string]string { return c.config }
 func (c baseCtx) Header() http.Header       { return c.header }
-func (c baseCtx) CallID() string            { return c.callID }
 func (c baseCtx) ContentType() string       { return c.header.Get("Content-Type") }
+func (c baseCtx) CallID() string            { return c.callID }
+func (c baseCtx) AppID() string             { return c.config["FN_APP_ID"] }
+func (c baseCtx) FnID() string              { return c.config["FN_FN_ID"] }
 
 func (c httpCtx) RequestURL() string    { return c.requestURL }
 func (c httpCtx) RequestMethod() string { return c.requestMethod }
