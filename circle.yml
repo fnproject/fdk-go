@@ -17,6 +17,15 @@ jobs:
       - run:
           command: fn build
           working_directory: examples/hello
+      - run:
+          command: docker build -t fnproject/fdk-go-init .
+          working_directory: images/init
+      - run:
+          command: docker build -t fnproject/fdk-go-build .
+          working_directory: images/build
+      - run:
+          command: docker build -t fnproject/fdk-go-runtime .
+          working_directory: images/runtime
       - deploy:
           command: |
             if [[ "${CIRCLE_BRANCH}" == "master" && -z "${CIRCLE_PR_REPONAME}" ]]; then
