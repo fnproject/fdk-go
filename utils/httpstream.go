@@ -161,7 +161,7 @@ func sockPerm(phonySock, realSock string) {
 		log.Fatalln("error giving sock file a perm", err)
 	}
 
-	err = os.Link(phonySock, realSock)
+	err = os.Symlink(filepath.Base(phonySock),realSock)
 	if err != nil {
 		log.Fatalln("error linking fake sock to real sock", err)
 	}
