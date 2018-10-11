@@ -28,7 +28,7 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer bufPool.Put(buf)
 
 	resp := response{
-		Writer: buf,
+		Buffer: buf,
 		status: 200,
 		header: w.Header(),
 	}
@@ -43,10 +43,8 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		encapHeaders(w.Header())
 		// here we set the code in headers, but don't write it to the client writer
 		w.Header().Set("Fn-Http-Status", strconv.Itoa(resp.status))
-	} else {
-		// XXX(reed): this is weird but makes sense somehow, idk
-		w.WriteHeader(resp.status)
 	}
+	// NOTE: FDKs don't set call status directly on the response at the moment...
 
 	// XXX(reed): 504 if ctx is past due / handle errors with 5xx? just 200 for now
 	// copy response from user back up now with headers in place...
@@ -60,8 +58,11 @@ type response struct {
 	status int
 	header http.Header
 
-	io.Writer
+	// use bytes.Buffer for io.ReaderFrom / io.WriterTo / et al optimization helper methods
+	*bytes.Buffer
 }
+
+var _ http.ResponseWriter = new(response)
 
 func (r *response) WriteHeader(code int) { r.status = code }
 func (r *response) Header() http.Header  { return r.header }
@@ -91,9 +92,7 @@ func encapHeaders(hdr http.Header) {
 
 		// prepend this guy, add it back
 		k = "Fn-Http-H-" + k
-		for _, v := range vs {
-			hdr.Add(k, v)
-		}
+		hdr[k] = vs
 	}
 }
 
@@ -103,26 +102,37 @@ func withHTTPContext(ctx context.Context) context.Context {
 		panic("danger will robinson: only call this method with a base context")
 	}
 
+	hdr := rctx.Header()
 	hctx := httpCtx{baseCtx: rctx}
 
-	ogHdr := rctx.Header()
-	hdr := make(http.Header, len(ogHdr))
-
-	// find things we need, and for http headers add them to the httph bucket, omit all else..
-	for k, vs := range ogHdr {
+	// remove garbage (non-'Fn-Http-H-') headers and fixed http headers on first
+	// pass, on 2nd pass we can replace all Fn-Http-H with stripped version and
+	// skip all we've done.  this costs 2n time (2 iterations) to keep memory
+	// usage flat (in place), we can't in place replace in linear time since go
+	// map iteration is not 'stable' and we may hit a key twice in 1 iteration
+	// and don't know if it's garbage or not. benchmarks prove it's worth it for all n.
+	for k, vs := range hdr {
 		switch {
-		case k == "Content-Type":
-			hdr[k] = vs
+		case k == "Content-Type" || strings.HasPrefix(k, "Fn-Http-H-"): // don't delete
 		case k == "Fn-Http-Request-Url":
 			hctx.requestURL = vs[0]
+			delete(hdr, k)
 		case k == "Fn-Http-Method":
 			hctx.requestMethod = vs[0]
-		case strings.HasPrefix(k, "Fn-Http-H-"):
-			hdr[strings.TrimPrefix(k, "Fn-Http-H-")] = vs
+			delete(hdr, k)
+		default:
+			delete(hdr, k)
 		}
 	}
 
-	hctx.header = hdr
+	for k, vs := range hdr {
+		switch {
+		case strings.HasPrefix(k, "Fn-Http-H-"):
+			hdr[strings.TrimPrefix(k, "Fn-Http-H-")] = vs
+		default: // we've already stripped / Content-Type
+		}
+	}
+
 	return WithContext(ctx, hctx)
 }
 
