@@ -1,210 +1,82 @@
 package fdk
 
 import (
-	"bufio"
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
-	"net/http/httputil"
+	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/fnproject/fdk-go/utils"
 	"time"
 )
 
-func echoHTTPHandler(_ context.Context, in io.Reader, out io.Writer) {
-	io.Copy(out, in)
+// XXX(reed): test cloudevents in http-stream land
+
+// echoHandler echos the body and all headers back
+func echoHandler(ctx context.Context, in io.Reader, out io.Writer) {
+	for k, vs := range GetContext(ctx).Header() {
+		for _, v := range vs {
+			AddHeader(out, k, v)
+		}
+	}
+
+	// XXX(reed): could configure this to test too
 	WriteStatus(out, http.StatusTeapot+2)
-	SetHeader(out, "yo", "dawg")
+	io.Copy(out, in)
 }
 
-func TestHandler(t *testing.T) {
-	inString := "yodawg"
-	var in bytes.Buffer
-	io.WriteString(&in, inString)
+func TestHTTPStreamSock(t *testing.T) {
+	// XXX(reed): move to fdk_linux_test.go with build tag
+	// XXX(reed): extract the underlying server handler / write tests against it instead of starting uds for other tests
 
-	var out bytes.Buffer
-	echoHTTPHandler(utils.BuildCtx(), &in, &out)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	if out.String() != inString {
-		t.Fatalf("this was supposed to be easy. strings no matchy: %s got: %s", inString, out.String())
-	}
-}
-
-func TestDefault(t *testing.T) {
-	inString := "yodawg"
-	var in bytes.Buffer
-	io.WriteString(&in, inString)
-
-	var out bytes.Buffer
-
-	utils.DoDefault(HandlerFunc(echoHTTPHandler), utils.BuildCtx(), &in, &out)
-
-	if out.String() != inString {
-		t.Fatalf("strings no matchy: %s got: %s", inString, out.String())
-	}
-}
-
-func JSONHandler(_ context.Context, in io.Reader, out io.Writer) {
-	var person struct {
-		Name string `json:"name"`
-	}
-	json.NewDecoder(in).Decode(&person)
-	if person.Name == "" {
-		person.Name = "world"
-	}
-
-	body := fmt.Sprintf("Hello %s!\n", person.Name)
-	SetHeader(out, "Content-Type", "application/json")
-	err := json.NewEncoder(out).Encode(body)
+	tmpSock, err := ioutil.TempDir("/tmp", "fdk-go-test")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		t.Fatal("couldn't make tmpdir for testing")
 	}
-}
+	defer os.RemoveAll(tmpSock)
 
-func JSONWithStatusCode(_ context.Context, _ io.Reader, out io.Writer) {
-	SetHeader(out, "Content-Type", "application/json")
-	WriteStatus(out, 201)
-}
+	tmpSock = filepath.Join(tmpSock, "fn.sock")
 
-func TestJSON(t *testing.T) {
-	req := &utils.JsonIn{
-		CallID:      "someid",
-		Body:        `{"name":"john"}`,
-		ContentType: "application/json",
-		Deadline:    "2018-01-30T16:52:39.786Z",
-		Protocol: utils.CallRequestHTTP{
-			Type:       "http",
-			RequestURL: "http://localhost:8080/r/myapp/yodawg",
-			Headers:    http.Header{},
-			Method:     "POST",
+	go startHTTPServer(ctx, HandlerFunc(echoHandler), "unix:"+tmpSock)
+
+	// let the uds server start... could inotify but don't want the dependency for tests...
+	time.Sleep(1 * time.Second)
+
+	client := http.Client{
+		Transport: &http.Transport{
+			MaxIdleConns:        1,
+			MaxIdleConnsPerHost: 1,
+			IdleConnTimeout:     1 * time.Second,
+			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+				var d net.Dialer
+				return d.DialContext(ctx, "unix", tmpSock)
+			},
 		},
 	}
 
-	var in bytes.Buffer
-	err := json.NewEncoder(&in).Encode(req)
-	if err != nil {
-		t.Fatal("Unable to marshal request")
-	}
-
-	var out, buf bytes.Buffer
-
-	err = utils.DoJSONOnce(HandlerFunc(JSONHandler), utils.BuildCtx(), &in, &out, &buf, make(http.Header))
-	if err != nil {
-		t.Fatal("should not return error", err)
-	}
-
-	JSONOut := &utils.JsonOut{}
-	err = json.NewDecoder(&out).Decode(JSONOut)
-
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	if !strings.Contains(JSONOut.Body, "Hello john!") {
-		t.Fatalf("Output assertion mismatch. Expected: `Hello john!\n`. Actual: %v", JSONOut.Body)
-	}
-	if JSONOut.Protocol.StatusCode != 200 {
-		t.Fatalf("Response code must equal to 200, but have: %v", JSONOut.Protocol.StatusCode)
-	}
-}
-
-func TestFailedJSON(t *testing.T) {
-	dummyBody := "should fail with this"
-	in := strings.NewReader(dummyBody)
-
-	var out, buf bytes.Buffer
-
-	JSONOut := &utils.JsonOut{}
-	err := utils.DoJSONOnce(HandlerFunc(JSONHandler), utils.BuildCtx(), in, &out, &buf, make(http.Header))
-	if err != nil {
-		t.Fatal("should not return error", err)
-	}
-
-	err = json.NewDecoder(&out).Decode(JSONOut)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	if JSONOut.Protocol.StatusCode != 500 {
-		t.Fatalf("Response code must equal to 500, but have: %v", JSONOut.Protocol.StatusCode)
-	}
-}
-
-func TestJSONEOF(t *testing.T) {
-	var in, out, buf bytes.Buffer
-
-	err := utils.DoJSONOnce(HandlerFunc(JSONHandler), utils.BuildCtx(), &in, &out, &buf, make(http.Header))
-	if err != io.EOF {
-		t.Fatal("should return EOF")
-	}
-}
-
-func TestJSONOverwriteStatusCodeAndHeaders(t *testing.T) {
-	var out, buf bytes.Buffer
-	req := &utils.JsonIn{
-		CallID:      "someid",
-		Body:        `{"name":"john"}`,
-		ContentType: "application/json",
-		Deadline:    "2018-01-30T16:52:39.786Z",
-		Protocol: utils.CallRequestHTTP{
-			Type:       "json",
-			RequestURL: "http://localhost:8080/r/myapp/yodawg",
-			Headers:    http.Header{},
-			Method:     "POST",
-		},
-	}
-
-	var in bytes.Buffer
-	err := json.NewEncoder(&in).Encode(req)
-	if err != nil {
-		t.Fatal("Unable to marshal request")
-	}
-
-	err = utils.DoJSONOnce(HandlerFunc(JSONWithStatusCode), utils.BuildCtx(), &in, &out, &buf, make(http.Header))
-	if err != nil {
-		t.Fatal("should not return error", err)
-	}
-
-	JSONOut := &utils.JsonOut{}
-	err = json.NewDecoder(&out).Decode(JSONOut)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	if JSONOut.Protocol.StatusCode != 201 {
-		t.Fatalf("Response code must equal to 201, but have: %v", JSONOut.Protocol.StatusCode)
-	}
-	cType := JSONOut.Protocol.Headers.Get("Content-Type")
-	if !strings.Contains(cType, "application/json") {
-		t.Fatalf("Response content type should be application/json in this test, but have: %v", cType)
-	}
-}
-
-func TestHTTP(t *testing.T) {
-	// simulate fn writing us http requests...
-
+	// TODO headers?
 	bodyString := "yodawg"
-	in := HTTPreq(t, bodyString)
-
-	var out bytes.Buffer
-	ctx := utils.BuildCtx()
-	err := utils.DoHTTPOnce(HandlerFunc(echoHTTPHandler), ctx, in, &out, &bytes.Buffer{}, make(http.Header))
+	req, err := http.NewRequest("POST", "http://localhost/call", strings.NewReader(bodyString))
 	if err != nil {
-		t.Fatal("should not return error", err)
+		t.Fatal("error making req", err)
 	}
+	req.Header.Set("yo", "dawg")
 
-	res, err := http.ReadResponse(bufio.NewReader(&out), nil)
+	res, err := client.Do(req)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("error doing uds request", err)
 	}
+	defer res.Body.Close()
 
-	if res.StatusCode != http.StatusTeapot+2 {
-		t.Fatal("got wrong status code", res.StatusCode)
+	if res.StatusCode != http.StatusOK {
+		t.Fatal("got wrong status code:", res.StatusCode)
 	}
 
 	outBody, err := ioutil.ReadAll(res.Body)
@@ -213,110 +85,96 @@ func TestHTTP(t *testing.T) {
 	}
 
 	if res.Header.Get("yo") != "dawg" {
-		t.Fatal("expected yo dawg header, didn't get it")
+		t.Fatal("expected yo dawg header, didn't get it", res.Header)
 	}
 
 	if string(outBody) != bodyString {
-		t.Fatal("strings no matchy for http", string(outBody), bodyString)
-	}
-
-}
-
-func TestHTTPEOF(t *testing.T) {
-	var in bytes.Buffer
-	var out bytes.Buffer
-	ctx := utils.BuildCtx()
-
-	err := utils.DoHTTPOnce(HandlerFunc(echoHTTPHandler), ctx, &in, &out, &bytes.Buffer{}, make(http.Header))
-	if err != io.EOF {
-		t.Fatal("should return EOF")
+		t.Fatal("body mismatch:", string(outBody), bodyString)
 	}
 }
 
-func HTTPreq(t *testing.T, bod string) io.Reader {
-	req, err := http.NewRequest("GET", "http://localhost:8080/r/myapp/yodawg", strings.NewReader(bod))
-	if err != nil {
-		t.Fatal(err)
+func TestHandler(t *testing.T) {
+	tests := []struct {
+		name      string
+		inBody    string
+		inHeader  http.Header
+		outBody   string
+		outHeader http.Header
+	}{
+		{"invoke", "yodawg", http.Header{"Yo": {"dawg"}}, "yodawg", http.Header{"Yo": {"dawg"}}},
+		{"httpgw", "yodawg", http.Header{"Fn-Intent": {"httprequest"}, "Fn-Http-H-Yo": {"dawg"}}, "yodawg", http.Header{"Fn-Http-H-Yo": {"dawg"}, "Fn-Http-Status": {"420"}}},
+		{"httpgw-rm-nongw", "yodawg", http.Header{"Fn-Intent": {"httprequest"}, "Yo": {"dawg"}}, "yodawg", http.Header{"Fn-Http-Status": {"420"}}},
+		// TODO(reed): test Fn-Http-Request-Url, Fn-Http-Method, Fn-Call-Id, Fn-Deadline...
 	}
 
-	byts, err := httputil.DumpRequestOut(req, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return bytes.NewReader(byts)
-}
+	// TODO make it so echoHandler takes expected headers to test
+	handler := &httpHandler{HandlerFunc(echoHandler)}
 
-func setupTestFromRequest(t *testing.T, data interface{}, contentType, nameTest string) {
-	req := &utils.CloudEventIn{
-		CloudEvent: utils.CloudEvent{
-			EventID:          "someid",
-			Source:           "fn-api",
-			EventType:        "test-type",
-			EventTypeVersion: "1.0",
-			EventTime:        time.Now(),
-			ContentType:      contentType,
-			Data:             data,
-		},
-		Extensions: utils.CloudEventInExtension{
-			Deadline: "2018-01-30T16:52:39.786Z",
-			Protocol: utils.CallRequestHTTP{
-				Type:       "http",
-				RequestURL: "http://localhost:8080/r/myapp/yodawg",
-				Headers:    http.Header{},
-				Method:     "POST",
-			},
-		},
-	}
-	var in bytes.Buffer
-	err := json.NewEncoder(&in).Encode(req)
-	if err != nil {
-		t.Fatal("Unable to marshal request")
-	}
-	t.Log(in.String())
-	var out, buf bytes.Buffer
+	for _, test := range tests {
+		req, err := http.NewRequest("POST", "http://localhost/call", strings.NewReader(test.inBody))
+		if err != nil {
+			t.Fatal("error making req", err)
+		}
+		req.Header = test.inHeader
 
-	err = utils.DoCloudEventOnce(HandlerFunc(JSONHandler), utils.BuildCtx(),
-		&in, &out, &buf, make(http.Header))
-	if err != nil {
-		t.Fatal("should not return error", err)
-	}
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+		resp := w.Result()
 
-	t.Log(out.String())
-	ceOut := &utils.CloudEventOut{}
-	err = json.NewDecoder(&out).Decode(ceOut)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+		if w.Body.String() != test.outBody {
+			t.Error("body mismatch", test.name, w.Body.String(), test.outBody)
+		}
 
-	if ceOut.Extensions.Protocol.StatusCode != 200 {
-		t.Fatalf("Response code must equal to 200, but have: %v", ceOut.Extensions.Protocol.StatusCode)
-	}
-
-	var respData string
-	json.Unmarshal([]byte(ceOut.Data.(string)), &respData)
-
-	if respData != "Hello "+nameTest+"!\n" {
-		t.Fatalf("Output assertion mismatch. Expected: `Hello %v!\n`. Actual: %v", nameTest, ceOut.Data)
+		for k := range test.outHeader {
+			if resp.Header.Get(k) != test.outHeader.Get(k) {
+				t.Error("header mismatch", test.name, k, resp.Header.Get(k), test.outHeader.Get(k))
+			}
+		}
 	}
 }
 
-func TestCloudEventWithJSONData(t *testing.T) {
-	data := map[string]string{
-		"name": "John",
+// NOTE: the below may serve as a reminder that memory allocs suck and you can do better
+
+const mappers = 10
+
+func memory1nMap(m map[int]int) map[int]int {
+	rm := make(map[int]int, len(m))
+	for _, i := range m {
+		rm[mappers-i] = i
 	}
-	contentType := "application/json"
-	setupTestFromRequest(t, data, contentType, "John")
+	return rm
 }
 
-func TestCloudEventWithStringData(t *testing.T) {
-	data := `{"name":"John"}`
-	contentType := "text/plain"
-	setupTestFromRequest(t, data, contentType, "John")
+func memory2nMap(m map[int]int) map[int]int {
+	for _, i := range m {
+		_ = i
+		continue
+	}
+
+	for _, i := range m {
+		m[mappers-i] = i
+	}
+	return m
 }
 
-func TestCloudEventWithPerfectlyValidJSONValue(t *testing.T) {
-	// https://tools.ietf.org/html/rfc7159#section-3
-	data := false
-	contentType := "application/json"
-	setupTestFromRequest(t, data, contentType, "world")
+func BenchmarkMapCrap1(b *testing.B) {
+	m := make(map[int]int)
+	for i := 0; i < mappers; i++ {
+		m[i] = i
+	}
+
+	for i := 0; i < b.N; i++ {
+		memory1nMap(m)
+	}
+}
+
+func BenchmarkMapCrap2(b *testing.B) {
+	m := make(map[int]int)
+	for i := 0; i < mappers; i++ {
+		m[i] = i
+	}
+
+	for i := 0; i < b.N; i++ {
+		memory2nMap(m)
+	}
 }
