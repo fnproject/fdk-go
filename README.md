@@ -13,9 +13,4 @@ This is documentation for the Go function development kit (FDK). The Go FDK  pro
 ## Go FDK Development
 See [CONTRIBUTING](https://github.com/fnproject/fn/blob/master/CONTRIBUTING.md) for information on contributing to the project.
 
-### Notes
-If you poke around in the Dockerfile you'll see that we simply add the `.go` source file and the `fdk-go` package to our workspace, then build a binary.  We then build an image with that binary that gets deployed to dockerhub and Fn.
-
-For more robust projects, it's recommended to use a tool like `dep` or `glide` to get dependencies such as the `fdk-go` into your functions.
-
 
