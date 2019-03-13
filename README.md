@@ -1,25 +1,35 @@
-# Go Fn Development Kit (FDK)
-
 [![GoDoc](https://godoc.org/github.com/fnproject/fdk-go?status.svg)](https://godoc.org/github.com/fnproject/fdk-go)
 
-fdk-go provides convenience functions for writing Go fn code
+# fdk-go Documentation
+This is documentation for the Go function development kit. `fdk-go` provides convenience functions for writing Go fn code.
 
-For getting started with fn, please refer to https://github.com/fnproject/fn/blob/master/README.md
-
-# Installing fdk-go
-
+## Install
+MacOS installation:
 ```sh
-go get github.com/fnproject/fdk-go
+brew update && brew install fn
 ```
 
-or your favorite vendoring solution :)
+or
 
-# Examples
+Alternatively for Linux/Unix/MacOS:
 
-For a simple getting started, see the [examples](/examples/hello) and follow
-the [README](/examples/README.md). If you already have `fn` set up it
-will take 2 minutes!
+```sh
+curl -LSs https://raw.githubusercontent.com/fnproject/cli/master/install | sh
+```
 
-# Advanced example
+## General Information
+* See the Fn [Quickstart](https://github.com/fnproject/fn/blob/master/README.md) for sample commands.
+* [Detailed installation instructions](http://fnproject.io/tutorials/install/).
+* [Configure your CLI Context](http://fnproject.io/tutorials/install/#ConfigureyourContext).
+* For a list of commands see [Fn CLI Command Guide and Reference](https://github.com/fnproject/docs/blob/master/cli/README.md).
+* For general information see Fn [docs](https://github.com/fnproject/docs) and [tutorials](https://fnproject.io/tutorials/).
 
-TODO going to move to [examples](examples/) too :)
+## fdk-go Development
+See [CONTRIBUTING](https://github.com/fnproject/fn/blob/master/CONTRIBUTING.md) for information on contributing to the project.
+
+### Notes
+If you poke around in the Dockerfile you'll see that we simply add the `.go` source file and the `fdk-go` package to our workspace, then build a binary.  We then build an image with that binary that gets deployed to dockerhub and Fn.
+
+For more robust projects, it's recommended to use a tool like `dep` or `glide` to get dependencies such as the `fdk-go` into your functions.
+
+
