@@ -1,7 +1,7 @@
 [![GoDoc](https://godoc.org/github.com/fnproject/fdk-go?status.svg)](https://godoc.org/github.com/fnproject/fdk-go)
 
 # Go FDK Documentation
-This is documentation for the Go function development kit (FDK). The Go FDK  provides convenience functions for writing Go Fn code.
+This is documentation for the Go function development kit (FDK) which provides convenience functions for writing Go Fn code.
 
 ## User Information
 * See the Fn [Quickstart](https://github.com/fnproject/fn/blob/master/README.md) for sample commands.
