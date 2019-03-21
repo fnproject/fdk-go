@@ -3,6 +3,7 @@ package fdk
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -35,6 +36,8 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := buildCtx(r.Context(), r)
 	defer cancel()
+
+	logFrameHeader(GetContext(ctx))
 
 	h.handler.Serve(ctx, r.Body, &resp)
 
@@ -215,5 +218,19 @@ func sockPerm(phonySock, realSock string) {
 	err = os.Symlink(filepath.Base(phonySock), realSock)
 	if err != nil {
 		log.Fatalln("error linking fake sock to real sock", err)
+	}
+}
+
+// If enabled, print the log framing content.
+func logFrameHeader(ctx Context) {
+	framer := os.Getenv("FN_LOG_HEADER")
+	if framer == "" {
+		return
+	}
+
+	id := ctx.CallID()
+	if id != "" {
+		fmt.Fprintf(os.Stderr, "\n%s=%s\n", framer, id)
+		fmt.Fprintf(os.Stdout, "\n%s=%s\n", framer, id)
 	}
 }
