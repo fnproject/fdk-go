@@ -1,25 +1,16 @@
-# Go Fn Development Kit (FDK)
-
 [![GoDoc](https://godoc.org/github.com/fnproject/fdk-go?status.svg)](https://godoc.org/github.com/fnproject/fdk-go)
 
-fdk-go provides convenience functions for writing Go fn code
+# Go FDK Documentation
+This is documentation for the Go function development kit (FDK) which provides convenience functions for writing Go Fn code.
 
-For getting started with fn, please refer to https://github.com/fnproject/fn/blob/master/README.md
+## User Information
+* See the Fn [Quickstart](https://github.com/fnproject/fn/blob/master/README.md) for sample commands.
+* [Detailed installation instructions](http://fnproject.io/tutorials/install/).
+* [Configure your CLI Context](http://fnproject.io/tutorials/install/#ConfigureyourContext).
+* For a list of commands see [Fn CLI Command Guide and Reference](https://github.com/fnproject/docs/blob/master/cli/README.md).
+* For general information see Fn [docs](https://github.com/fnproject/docs) and [tutorials](https://fnproject.io/tutorials/).
 
-# Installing fdk-go
+## Go FDK Development
+See [CONTRIBUTING](https://github.com/fnproject/fn/blob/master/CONTRIBUTING.md) for information on contributing to the project.
 
-```sh
-go get github.com/fnproject/fdk-go
-```
 
-or your favorite vendoring solution :)
-
-# Examples
-
-For a simple getting started, see the [examples](/examples/hello) and follow
-the [README](/examples/README.md). If you already have `fn` set up it
-will take 2 minutes!
-
-# Advanced example
-
-TODO going to move to [examples](examples/) too :)
