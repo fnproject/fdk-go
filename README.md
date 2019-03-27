@@ -3,6 +3,8 @@
 # Go FDK Documentation
 This is documentation for the Go function development kit (FDK) which provides convenience functions for writing Go Fn code.
 
+For getting started using the go fdk, see the tutorial [here.](https://github.com/fnproject/tutorials/tree/master/Introduction)
+
 ## User Information
 * See the Fn [Quickstart](https://github.com/fnproject/fn/blob/master/README.md) for sample commands.
 * [Detailed installation instructions](http://fnproject.io/tutorials/install/).
