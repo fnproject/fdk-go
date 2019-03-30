@@ -1,6 +1,5 @@
 schema_version: 20180708
 name: hello
 version: 0.0.1
-runtime: go
+runtime: docker
 entrypoint: ./func
-format: http-stream
