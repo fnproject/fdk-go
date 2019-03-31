@@ -37,7 +37,7 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := buildCtx(r.Context(), r)
 	defer cancel()
 
-	logFrameHeader(GetContext(ctx))
+	logFrameHeader(r)
 
 	h.handler.Serve(ctx, r.Body, &resp)
 
@@ -222,13 +222,16 @@ func sockPerm(phonySock, realSock string) {
 }
 
 // If enabled, print the log framing content.
-func logFrameHeader(ctx Context) {
-	framer := os.Getenv("FN_LOG_HEADER")
+func logFrameHeader(r *http.Request) {
+	framer := os.Getenv("FN_LOGFRAME_NAME")
 	if framer == "" {
 		return
 	}
-
-	id := ctx.CallID()
+	valueSrc := os.Getenv("FN_LOGFRAME_HDR")
+	if valueSrc == "" {
+		return
+	}
+	id := r.Header.Get(valueSrc)
 	if id != "" {
 		fmt.Fprintf(os.Stderr, "\n%s=%s\n", framer, id)
 		fmt.Fprintf(os.Stdout, "\n%s=%s\n", framer, id)
