@@ -10,17 +10,12 @@ jobs:
       - checkout
       - setup_remote_docker:
           docker_layer_caching: true
-      - run: docker version
       - run: docker pull fnproject/fnserver
       - run:
           command: go test -v ./...
-      - run:
-          command: |
-            curl -LSs https://raw.githubusercontent.com/fnproject/cli/master/install | sh
       - deploy:
           command: |
             if [[ "${CIRCLE_BRANCH}" == "master" && -z "${CIRCLE_PR_REPONAME}" ]]; then
-              func_version=$(awk '/^version:/ { print $2; }' func.yaml)
               printenv DOCKER_PASS | docker login -u ${DOCKER_USER} --password-stdin
               git config --global user.email "ci@fnproject.com"
               git config --global user.name "CI"
