@@ -49,6 +49,9 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	// NOTE: FDKs don't set call status directly on the response at the moment...
 
+	// send back our version
+	w.Header().Set("Fn-Fdk-Version", versionHeader)
+
 	// XXX(reed): 504 if ctx is past due / handle errors with 5xx? just 200 for now
 	// copy response from user back up now with headers in place...
 	io.Copy(w, buf)
