@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -40,6 +41,9 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logFrameHeader(r)
 
 	h.handler.Serve(ctx, r.Body, &resp)
+
+	io.Copy(ioutil.Discard, r.Body) // Ignoring error since r.Body may already be closed
+	r.Body.Close()
 
 	if _, ok := GetContext(ctx).(HTTPContext); ok {
 		// XXX(reed): could put this in a response writer to clean up? not as easy as it looks (ordering wrt WriteHeader())
