@@ -1,6 +1,7 @@
-FROM alpine:3.10
+FROM golang:1.12.7-alpine3.10
+RUN apk add --no-cache git
 
 COPY boilerplate /boilerplate
 
 WORKDIR /boilerplate
-CMD ["tar", "c", "go.mod", "func.go", "func.init.yaml"]
+CMD ["/bin/sh", "mod.sh"]
