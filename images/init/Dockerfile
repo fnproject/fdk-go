@@ -1,9 +1,7 @@
-FROM alpine:3.10
+FROM golang:1.12.7-alpine3.10
+RUN apk add --no-cache git
 
 COPY boilerplate /boilerplate
 
-ARG tag=latest
-RUN sed -i "s/TAG/${tag}/" /boilerplate/func.init.yaml
-
 WORKDIR /boilerplate
-CMD ["tar", "c", "Gopkg.toml", "func.go", "func.init.yaml"]
+CMD ["/bin/sh", "mod.sh"]
