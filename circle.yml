@@ -7,7 +7,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker:
-          docker_layer_caching: true
+          docker_layer_caching: false
       - run: docker version
       - run: docker pull fnproject/fnserver
       # installing Fn CLI and starting the Fn server
