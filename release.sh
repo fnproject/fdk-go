@@ -23,4 +23,5 @@ echo "Version: $version"
 git add -u
 git commit -m "v$version release [skip ci]"
 git tag -f -a "v$version" -m "version v$version"
+git push
 git push --tags origin master
