@@ -39,6 +39,7 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	logFrameHeader(r)
+	log.Println("Request started")
 
 	h.handler.Serve(ctx, r.Body, &resp)
 
@@ -59,6 +60,8 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// XXX(reed): 504 if ctx is past due / handle errors with 5xx? just 200 for now
 	// copy response from user back up now with headers in place...
 	io.Copy(w, buf)
+
+	log.Println("Request completed")
 
 	// XXX(reed): handle streaming, we have to intercept headers but not necessarily body (ie no buffer)
 }
