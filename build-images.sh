@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 #
 # Copyright (c) 2019, 2020 Oracle and/or its affiliates. All rights reserved.
 #
@@ -14,10 +15,15 @@
 # limitations under the License.
 #
 
-FROM golang:1.12.7-alpine3.10
-RUN apk add --no-cache git
 
-COPY boilerplate /boilerplate
+set -xe
 
-WORKDIR /boilerplate
-CMD ["/bin/sh", "mod.sh"]
+if [ -z "$1" ];then
+  echo "Please supply Go version as argument to build image." >> /dev/stderr
+  exit 2
+fi
+
+goversion=$1
+
+pushd images/build/${goversion} && docker build -t fnproject/go:${goversion}-dev . && popd
+pushd images/runtime/${goversion} && docker build -t fnproject/go:${goversion} . && popd
