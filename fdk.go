@@ -22,6 +22,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -129,6 +130,82 @@ type HTTPContext interface {
 	RequestMethod() string
 }
 
+// TracingContext contains all configuration for a function invocated to
+// get the tracing context data.
+type TracingContext interface {
+	Context
+
+	/**
+	 * Returns true if tracing is enabled for this function invocation
+	 * @return whether tracing is enabled
+	 */
+	IsTracingEnabled() bool
+
+	/**
+	 * Returns the user-friendly name of the application associated with the
+	 * function; shorthand for Context.getAppName()
+	 * @return the user-friendly name of the application associated with the
+	 * function
+	 */
+	GetAppName() string
+
+	/**
+	 * Returns the user-friendly name of the function; shorthand for
+	 * Context.getFunctionName()
+	 * @return the user-friendly name of the function
+	 */
+	GetFunctionName() string
+
+	/**
+	 * Returns a standard constructed "service name" to be used in tracing
+	 * libraries to identify the function
+	 * @return a standard constructed "service name"
+	 */
+	GetServiceName() string
+
+	/**
+	 * Returns the URL to be used in tracing libraries as the destination for
+	 * the tracing data
+	 * @return a string containing the trace collector URL
+	 */
+	GetTraceCollectorURL() string
+
+	/**
+	 * Returns the current trace ID as extracted from Zipkin B3 headers if they
+	 * are present on the request
+	 * @return the trace ID as a string
+	 */
+	GetTraceId() string
+
+	/**
+	 * Returns the current span ID as extracted from Zipkin B3 headers if they
+	 * are present on the request
+	 * @return the span ID as a string
+	 */
+	GetSpanId() string
+
+	/**
+	 * Returns the parent span ID as extracted from Zipkin B3 headers if they
+	 * are present on the request
+	 * @return the parent span ID as a string
+	 */
+	GetParentSpanId() string
+
+	/**
+	 * Returns the value of the Sampled header of the Zipkin B3 headers if they
+	 * are present on the request
+	 * @return true if sampling is enabled for the request
+	 */
+	IsSampled() bool
+
+	/**
+	 * Returns the value of the Flags header of the Zipkin B3 headers if they
+	 * are present on the request
+	 * @return the verbatim value of the X-B3-Flags header
+	 */
+	GetFlags() string
+}
+
 type baseCtx struct {
 	header http.Header
 	config map[string]string
@@ -143,6 +220,19 @@ type httpCtx struct {
 	requestMethod string
 }
 
+type tracingCtx struct {
+	baseCtx
+	traceCollectorURL string
+	traceId           string
+	spanId            string
+	parentSpanId      string
+	sampled           bool
+	flags             string
+	tracingEnabled    bool
+	appName           string
+	fnName            string
+}
+
 func (c baseCtx) Config() map[string]string { return c.config }
 func (c baseCtx) Header() http.Header       { return c.header }
 func (c baseCtx) ContentType() string       { return c.header.Get("Content-Type") }
@@ -152,6 +242,29 @@ func (c baseCtx) FnID() string              { return c.config["FN_FN_ID"] }
 
 func (c httpCtx) RequestURL() string    { return c.requestURL }
 func (c httpCtx) RequestMethod() string { return c.requestMethod }
+
+func (c tracingCtx) GetAppName() string      { return c.config["FN_APP_NAME"] }
+func (c tracingCtx) GetFunctionName() string { return c.config["FN_FN_NAME"] }
+func (c tracingCtx) GetServiceName() string  { return c.GetAppName() + "::" + c.GetFunctionName() }
+func (c tracingCtx) IsTracingEnabled() bool {
+	isEnabled, err := strconv.ParseBool(c.config["OCI_TRACING_ENABLED"])
+	if err == nil {
+		return isEnabled
+	}
+	return false
+}
+func (c tracingCtx) GetTraceCollectorURL() string { return c.config["OCI_TRACE_COLLECTOR_URL"] }
+func (c tracingCtx) GetTraceId() string           { return c.header.Get("x-b3-traceid") }
+func (c tracingCtx) GetSpanId() string            { return c.header.Get("x-b3-spanid") }
+func (c tracingCtx) GetParentSpanId() string      { return c.header.Get("x-b3-parentspanid") }
+func (c tracingCtx) IsSampled() bool {
+	isSampled, err := strconv.ParseBool(c.header.Get("x-b3-sampled"))
+	if err == nil {
+		return isSampled
+	}
+	return false
+}
+func (c tracingCtx) GetFlags() string { return c.header.Get("x-b3-flags") }
 
 func ctxWithDeadline(ctx context.Context, fnDeadline string) (context.Context, context.CancelFunc) {
 	t, err := time.Parse(time.RFC3339, fnDeadline)
