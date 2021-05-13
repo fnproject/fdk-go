@@ -22,7 +22,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 )
 
@@ -115,6 +114,9 @@ type Context interface {
 
 	// FnID is Config()["FN_FN_ID"]
 	FnID() string
+
+	// Tracing Context Data if available
+	TracingContextData() TracingContext
 }
 
 // HTTPContext contains all configuration for a function invocation sourced
@@ -133,8 +135,6 @@ type HTTPContext interface {
 // TracingContext contains all configuration for a function invocated to
 // get the tracing context data.
 type TracingContext interface {
-	Context
-
 	/**
 	 * Returns true if tracing is enabled for this function invocation
 	 * @return whether tracing is enabled
@@ -207,9 +207,10 @@ type TracingContext interface {
 }
 
 type baseCtx struct {
-	header http.Header
-	config map[string]string
-	callID string
+	header         http.Header
+	config         map[string]string
+	callID         string
+	tracingContext tracingCtx
 }
 
 type httpCtx struct {
@@ -221,7 +222,6 @@ type httpCtx struct {
 }
 
 type tracingCtx struct {
-	baseCtx
 	traceCollectorURL string
 	traceId           string
 	spanId            string
@@ -239,32 +239,23 @@ func (c baseCtx) ContentType() string       { return c.header.Get("Content-Type"
 func (c baseCtx) CallID() string            { return c.callID }
 func (c baseCtx) AppID() string             { return c.config["FN_APP_ID"] }
 func (c baseCtx) FnID() string              { return c.config["FN_FN_ID"] }
+func (c baseCtx) TracingContextData() TracingContext {
+	return setTracingContext(c.config, c.header)
+}
 
 func (c httpCtx) RequestURL() string    { return c.requestURL }
 func (c httpCtx) RequestMethod() string { return c.requestMethod }
 
-func (c tracingCtx) GetAppName() string      { return c.config["FN_APP_NAME"] }
-func (c tracingCtx) GetFunctionName() string { return c.config["FN_FN_NAME"] }
-func (c tracingCtx) GetServiceName() string  { return c.GetAppName() + "::" + c.GetFunctionName() }
-func (c tracingCtx) IsTracingEnabled() bool {
-	isEnabled, err := strconv.ParseBool(c.config["OCI_TRACING_ENABLED"])
-	if err == nil {
-		return isEnabled
-	}
-	return false
-}
-func (c tracingCtx) GetTraceCollectorURL() string { return c.config["OCI_TRACE_COLLECTOR_URL"] }
-func (c tracingCtx) GetTraceId() string           { return c.header.Get("x-b3-traceid") }
-func (c tracingCtx) GetSpanId() string            { return c.header.Get("x-b3-spanid") }
-func (c tracingCtx) GetParentSpanId() string      { return c.header.Get("x-b3-parentspanid") }
-func (c tracingCtx) IsSampled() bool {
-	isSampled, err := strconv.ParseBool(c.header.Get("x-b3-sampled"))
-	if err == nil {
-		return isSampled
-	}
-	return false
-}
-func (c tracingCtx) GetFlags() string { return c.header.Get("x-b3-flags") }
+func (c tracingCtx) GetAppName() string           { return c.appName }
+func (c tracingCtx) GetFunctionName() string      { return c.fnName }
+func (c tracingCtx) GetServiceName() string       { return c.appName + "::" + c.fnName }
+func (c tracingCtx) IsTracingEnabled() bool       { return c.tracingEnabled }
+func (c tracingCtx) GetTraceCollectorURL() string { return c.traceCollectorURL }
+func (c tracingCtx) GetTraceId() string           { return c.traceId }
+func (c tracingCtx) GetSpanId() string            { return c.spanId }
+func (c tracingCtx) GetParentSpanId() string      { return c.parentSpanId }
+func (c tracingCtx) IsSampled() bool              { return c.sampled }
+func (c tracingCtx) GetFlags() string             { return c.flags }
 
 func ctxWithDeadline(ctx context.Context, fnDeadline string) (context.Context, context.CancelFunc) {
 	t, err := time.Parse(time.RFC3339, fnDeadline)

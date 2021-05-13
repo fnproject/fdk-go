@@ -162,26 +162,21 @@ func withHTTPContext(ctx context.Context) context.Context {
 	return WithContext(ctx, hctx)
 }
 
-func withTracingContext(ctx context.Context) context.Context {
-	rctx, ok := GetContext(ctx).(baseCtx)
-	if !ok {
-		panic("danger will robinson: only call this method with a base context")
+func setTracingContext(config map[string]string, header http.Header) tracingCtx {
+	if config["OCI_TRACING_ENABLED"] != "true" {
+		return tracingCtx{}
 	}
-
-	config := GetContext(ctx).Config()
-	hdr := rctx.Header()
 	tctx := tracingCtx{
-		baseCtx:           rctx,
 		traceCollectorURL: config["OCI_TRACE_COLLECTOR_URL"],
-		traceId:           hdr.Get("x-b3-traceid"),
-		spanId:            hdr.Get("x-b3-spanid"),
-		parentSpanId:      hdr.Get("x-b3-parentspanid"),
-		flags:             hdr.Get("x-b3-flags"),
+		traceId:           header.Get("x-b3-traceid"),
+		spanId:            header.Get("x-b3-spanid"),
+		parentSpanId:      header.Get("x-b3-parentspanid"),
+		flags:             header.Get("x-b3-flags"),
 		appName:           config["FN_APP_NAME"],
 		fnName:            config["FN_FN_NAME"],
 	}
 
-	isSampled, err := strconv.ParseBool(hdr.Get("x-b3-sampled"))
+	isSampled, err := strconv.ParseBool(header.Get("x-b3-sampled"))
 	tctx.sampled = false
 	if err == nil {
 		tctx.sampled = isSampled
@@ -193,14 +188,16 @@ func withTracingContext(ctx context.Context) context.Context {
 		tctx.tracingEnabled = isEnabled
 	}
 
-	return WithContext(ctx, tctx)
+	return tctx
 }
 
 func withBaseContext(ctx context.Context, r *http.Request) (_ context.Context, cancel func()) {
+	configData := buildConfig() // from env vars (stinky, but effective...)
 	rctx := baseCtx{
-		config: buildConfig(), // from env vars (stinky, but effective...)
-		callID: r.Header.Get("Fn-Call-Id"),
-		header: r.Header,
+		config:         configData,
+		callID:         r.Header.Get("Fn-Call-Id"),
+		header:         r.Header,
+		tracingContext: setTracingContext(configData, r.Header),
 	}
 
 	ctx = WithContext(ctx, rctx)
@@ -210,13 +207,10 @@ func withBaseContext(ctx context.Context, r *http.Request) (_ context.Context, c
 
 func buildCtx(ctx context.Context, r *http.Request) (_ context.Context, cancel func()) {
 	ctx, cancel = withBaseContext(ctx, r)
-	config := GetContext(ctx).Config()
+	// config := GetContext(ctx).Config()
 
 	if GetContext(ctx).Header().Get("Fn-Intent") == "httprequest" {
 		ctx = withHTTPContext(ctx)
-	}
-	if config["OCI_TRACING_ENABLED"] == "true" {
-		ctx = withTracingContext(ctx)
 	}
 
 	return ctx, cancel
