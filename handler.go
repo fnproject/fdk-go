@@ -163,7 +163,10 @@ func withHTTPContext(ctx context.Context) context.Context {
 }
 
 func setTracingContext(config map[string]string, header http.Header) tracingCtx {
-	if config["OCI_TRACING_ENABLED"] != "true" {
+	if config["OCI_TRACING_ENABLED"] == "0" {
+		// When tracing is not enabled then we
+		// assign empty tracing context to
+		// the context
 		return tracingCtx{}
 	}
 	tctx := tracingCtx{
