@@ -25,6 +25,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -41,6 +42,42 @@ func echoHandler(ctx context.Context, in io.Reader, out io.Writer) {
 	}
 
 	// XXX(reed): could configure this to test too
+	WriteStatus(out, http.StatusTeapot+2)
+	io.Copy(out, in)
+}
+
+// echoContextHandler echos the tracing context back
+func echoContextHandler(ctx context.Context, in io.Reader, out io.Writer) {
+	nctx := GetContext(ctx)
+
+	if resp, ok := out.(http.ResponseWriter); ok {
+		resp.Header().Add("traceId", nctx.TracingContextData().TraceId())
+		resp.Header().Add("spanId", nctx.TracingContextData().SpanId())
+		resp.Header().Add("parentSpanId", nctx.TracingContextData().ParentSpanId())
+		resp.Header().Add("sampled", strconv.FormatBool(nctx.TracingContextData().IsSampled()))
+		resp.Header().Add("ociURL", nctx.TracingContextData().TraceCollectorURL())
+		resp.Header().Add("flag", nctx.TracingContextData().Flags())
+		resp.Header().Add("ServiceName", nctx.TracingContextData().ServiceName())
+	}
+	// XXX(reed): could configure this to test too
+
+	WriteStatus(out, http.StatusTeapot+2)
+	io.Copy(out, in)
+}
+
+// echoContextHandler echos the context app data back
+func echoContextHandlerAppData(ctx context.Context, in io.Reader, out io.Writer) {
+	nctx := GetContext(ctx)
+
+	if resp, ok := out.(http.ResponseWriter); ok {
+		resp.Header().Add("AppId", nctx.AppID())
+		resp.Header().Add("AppName", nctx.AppName())
+		resp.Header().Add("FnId", nctx.FnID())
+		resp.Header().Add("FnName", nctx.FnName())
+		resp.Header().Add("CallId", nctx.CallID())
+	}
+	// XXX(reed): could configure this to test too
+
 	WriteStatus(out, http.StatusTeapot+2)
 	io.Copy(out, in)
 }
@@ -132,6 +169,149 @@ func TestHandler(t *testing.T) {
 			t.Fatal("error making req", err)
 		}
 		req.Header = test.inHeader
+
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+		resp := w.Result()
+
+		if w.Body.String() != test.outBody {
+			t.Error("body mismatch", test.name, w.Body.String(), test.outBody)
+		}
+
+		for k := range test.outHeader {
+			if resp.Header.Get(k) != test.outHeader.Get(k) {
+				t.Error("header mismatch", test.name, k, resp.Header.Get(k), test.outHeader.Get(k))
+			}
+		}
+	}
+}
+
+func TestTracingContextInHandlerWithOCITracingDisabled(t *testing.T) {
+	tests := []struct {
+		name      string
+		inBody    string
+		inHeader  http.Header
+		outBody   string
+		outHeader http.Header
+	}{
+		{"testinvoke", "yodawg", http.Header{"Fn-Intent": []string{"httprequest"}, "Fn-Call-Id": []string{"dawg"}}, "yodawg",
+			http.Header{"Fn-Http-Status": {"420"}, "Fn-Http-H-Ociurl": {""}, "Fn-Http-H-Parentspanid": {""},
+				"Fn-Http-H-Sampled": {"false"}, "Fn-Http-H-Spanid": {""}, "Fn-Http-H-Traceid": {""},
+				"Fn-Http-H-Flag": {""}}},
+	}
+
+	os.Setenv("FN_APP_ID", "GOLANGAPP1234323dsw")
+	os.Setenv("FN_FN_ID", "12342r321422b41")
+	os.Setenv("FN_APP_NAME", "GOLANGAPP")
+	os.Setenv("FN_FN_NAME", "FNTESTAPP")
+	os.Setenv("OCI_TRACING_ENABLED", "0")
+
+	handler := &httpHandler{HandlerFunc(echoContextHandler)}
+
+	for _, test := range tests {
+		req, err := http.NewRequest("POST", "http://localhost/invoke", strings.NewReader(test.inBody))
+		if err != nil {
+			t.Fatal("error making req", err)
+		}
+		req.Header = test.inHeader
+		req.Header.Set("Fn-Call-Id", "fncall")
+
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+		resp := w.Result()
+
+		if w.Body.String() != test.outBody {
+			t.Error("body mismatch", test.name, w.Body.String(), test.outBody)
+		}
+
+		for k := range test.outHeader {
+			if resp.Header.Get(k) != test.outHeader.Get(k) {
+				t.Error("header mismatch", test.name, k, resp.Header.Get(k), test.outHeader.Get(k))
+			}
+		}
+	}
+}
+
+func TestTracingContextInHandler(t *testing.T) {
+	tests := []struct {
+		name      string
+		inBody    string
+		inHeader  http.Header
+		outBody   string
+		outHeader http.Header
+	}{
+		{"testinvoke", "yodawg", http.Header{"Fn-Intent": []string{"httprequest"}, "Fn-Call-Id": []string{"dawg"}}, "yodawg",
+			http.Header{"Fn-Http-Status": {"420"}, "Fn-Http-H-Ociurl": {"localhost"}, "Fn-Http-H-Parentspanid": {""},
+				"Fn-Http-H-Sampled": {"true"}, "Fn-Http-H-Spanid": {"12345675685432"}, "Fn-Http-H-Traceid": {"12345675685432"},
+				"Fn-Http-H-Flag": {"1"}, "Fn-Http-H-Servicename": {"golangapp::fntestapp"}}},
+	}
+
+	os.Setenv("FN_APP_ID", "GOLANGAPP1234323dsw")
+	os.Setenv("FN_FN_ID", "12342r321422b41")
+	os.Setenv("FN_APP_NAME", "GOLANGAPP")
+	os.Setenv("FN_FN_NAME", "FNTESTAPP")
+	os.Setenv("OCI_TRACING_ENABLED", "1")
+	os.Setenv("OCI_TRACE_COLLECTOR_URL", "localhost")
+
+	handler := &httpHandler{HandlerFunc(echoContextHandler)}
+
+	for _, test := range tests {
+		req, err := http.NewRequest("POST", "http://localhost/invoke", strings.NewReader(test.inBody))
+		if err != nil {
+			t.Fatal("error making req", err)
+		}
+		req.Header = test.inHeader
+		req.Header.Set("x-b3-traceid", "12345675685432")
+		req.Header.Set("x-b3-spanid", "12345675685432")
+		req.Header.Set("x-b3-parentspanid", "")
+		req.Header.Set("x-b3-flags", "1")
+		req.Header.Set("x-b3-sampled", "1")
+		req.Header.Set("Fn-Call-Id", "fncall")
+
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+		resp := w.Result()
+
+		if w.Body.String() != test.outBody {
+			t.Error("body mismatch", test.name, w.Body.String(), test.outBody)
+		}
+
+		for k := range test.outHeader {
+			if resp.Header.Get(k) != test.outHeader.Get(k) {
+				t.Error("header mismatch", test.name, k, resp.Header.Get(k), test.outHeader.Get(k))
+			}
+		}
+	}
+}
+
+func TestContextInHandlerWithAppFunctionData(t *testing.T) {
+	tests := []struct {
+		name      string
+		inBody    string
+		inHeader  http.Header
+		outBody   string
+		outHeader http.Header
+	}{
+		{"testinvoke", "yodawg", http.Header{"Fn-Intent": []string{"httprequest"}, "Fn-Call-Id": []string{"dawg"}}, "yodawg",
+			http.Header{"Fn-Http-Status": {"420"}, "Fn-Http-H-Appid": {"GOLANGAPP1234323dsw"}, "Fn-Http-H-Appname": {"GOLANGAPP"},
+				"Fn-Http-H-Callid": {"fncall"}, "Fn-Http-H-Fnid": {"12342r321422b41"}, "Fn-Http-H-Fnname": {"FNTESTAPP"}}},
+	}
+
+	os.Setenv("FN_APP_ID", "GOLANGAPP1234323dsw")
+	os.Setenv("FN_FN_ID", "12342r321422b41")
+	os.Setenv("FN_APP_NAME", "GOLANGAPP")
+	os.Setenv("FN_FN_NAME", "FNTESTAPP")
+	os.Setenv("OCI_TRACING_ENABLED", "0")
+
+	handler := &httpHandler{HandlerFunc(echoContextHandlerAppData)}
+
+	for _, test := range tests {
+		req, err := http.NewRequest("POST", "http://localhost/invoke", strings.NewReader(test.inBody))
+		if err != nil {
+			t.Fatal("error making req", err)
+		}
+		req.Header = test.inHeader
+		req.Header.Set("Fn-Call-Id", "fncall")
 
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)

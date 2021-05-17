@@ -175,14 +175,15 @@ func setTracingContext(config map[string]string, header http.Header) tracingCtx 
 		spanId:            header.Get("x-b3-spanid"),
 		parentSpanId:      header.Get("x-b3-parentspanid"),
 		flags:             header.Get("x-b3-flags"),
-		appName:           config["FN_APP_NAME"],
-		fnName:            config["FN_FN_NAME"],
+		sampled:           true,
+		serviceName:       strings.ToLower(config["FN_APP_NAME"] + "::" + config["FN_FN_NAME"]),
 	}
 
-	isSampled, err := strconv.ParseBool(header.Get("x-b3-sampled"))
-	tctx.sampled = false
-	if err == nil {
-		tctx.sampled = isSampled
+	if header.Get("x-b3-sampled") != "" {
+		isSampled, err := strconv.ParseBool(header.Get("x-b3-sampled"))
+		if err == nil {
+			tctx.sampled = isSampled
+		}
 	}
 
 	isEnabled, err := strconv.ParseBool(config["OCI_TRACING_ENABLED"])
@@ -210,7 +211,6 @@ func withBaseContext(ctx context.Context, r *http.Request) (_ context.Context, c
 
 func buildCtx(ctx context.Context, r *http.Request) (_ context.Context, cancel func()) {
 	ctx, cancel = withBaseContext(ctx, r)
-	// config := GetContext(ctx).Config()
 
 	if GetContext(ctx).Header().Get("Fn-Intent") == "httprequest" {
 		ctx = withHTTPContext(ctx)
