@@ -114,6 +114,15 @@ type Context interface {
 
 	// FnID is Config()["FN_FN_ID"]
 	FnID() string
+
+	// AppName is Config()["FN_APP_ID"]
+	AppName() string
+
+	// FnName is Config()["FN_FN_Name"]
+	FnName() string
+
+	// Tracing Context Data if available
+	TracingContextData() TracingContext
 }
 
 // HTTPContext contains all configuration for a function invocation sourced
@@ -129,10 +138,66 @@ type HTTPContext interface {
 	RequestMethod() string
 }
 
+// TracingContext contains all configuration for a function invocated to
+// get the tracing context data.
+type TracingContext interface {
+	/**
+	 * Returns true if tracing is enabled for this function invocation
+	 * @return whether tracing is enabled
+	 */
+	IsTracingEnabled() bool
+
+	/**
+	 * Returns the URL to be used in tracing libraries as the destination for
+	 * the tracing data
+	 * @return a string containing the trace collector URL
+	 */
+	TraceCollectorURL() string
+
+	/**
+	 * Returns the current trace ID as extracted from Zipkin B3 headers if they
+	 * are present on the request
+	 * @return the trace ID as a string
+	 */
+	TraceId() string
+
+	/**
+	 * Returns the current span ID as extracted from Zipkin B3 headers if they
+	 * are present on the request
+	 * @return the span ID as a string
+	 */
+	SpanId() string
+
+	/**
+	 * Returns the parent span ID as extracted from Zipkin B3 headers if they
+	 * are present on the request
+	 * @return the parent span ID as a string
+	 */
+	ParentSpanId() string
+
+	/**
+	 * Returns the value of the Sampled header of the Zipkin B3 headers if they
+	 * are present on the request
+	 * @return true if sampling is enabled for the request
+	 */
+	IsSampled() bool
+
+	/**
+	 * Returns the value of the Flags header of the Zipkin B3 headers if they
+	 * are present on the request
+	 * @return the verbatim value of the X-B3-Flags header
+	 */
+	Flags() string
+
+	// ServiceName is Config()["FN_APP_ID"] + Config()["FN_FN_Name"]
+	ServiceName() string
+}
+
 type baseCtx struct {
-	header http.Header
-	config map[string]string
-	callID string
+	header         http.Header
+	config         map[string]string
+	callID         string
+	tracingContext tracingCtx
 }
 
 type httpCtx struct {
@@ -143,15 +208,42 @@ type httpCtx struct {
 	requestMethod string
 }
 
+type tracingCtx struct {
+	traceCollectorURL string
+	traceId           string
+	spanId            string
+	parentSpanId      string
+	sampled           bool
+	flags             string
+	tracingEnabled    bool
+	serviceName       string
+}
+
 func (c baseCtx) Config() map[string]string { return c.config }
 func (c baseCtx) Header() http.Header       { return c.header }
 func (c baseCtx) ContentType() string       { return c.header.Get("Content-Type") }
 func (c baseCtx) CallID() string            { return c.callID }
 func (c baseCtx) AppID() string             { return c.config["FN_APP_ID"] }
 func (c baseCtx) FnID() string              { return c.config["FN_FN_ID"] }
+func (c baseCtx) TracingContextData() TracingContext {
+	return c.tracingContext
+}
 
 func (c httpCtx) RequestURL() string    { return c.requestURL }
 func (c httpCtx) RequestMethod() string { return c.requestMethod }
+
+func (c baseCtx) AppName() string { return c.config["FN_APP_NAME"] }
+func (c baseCtx) FnName() string  { return c.config["FN_FN_NAME"] }
+func (c tracingCtx) ServiceName() string {
+	return c.serviceName
+}
+func (c tracingCtx) IsTracingEnabled() bool    { return c.tracingEnabled }
+func (c tracingCtx) TraceCollectorURL() string { return c.traceCollectorURL }
+func (c tracingCtx) TraceId() string           { return c.traceId }
+func (c tracingCtx) SpanId() string            { return c.spanId }
+func (c tracingCtx) ParentSpanId() string      { return c.parentSpanId }
+func (c tracingCtx) IsSampled() bool           { return c.sampled }
+func (c tracingCtx) Flags() string             { return c.flags }
 
 func ctxWithDeadline(ctx context.Context, fnDeadline string) (context.Context, context.CancelFunc) {
 	t, err := time.Parse(time.RFC3339, fnDeadline)

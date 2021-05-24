@@ -1,0 +1,5 @@
+schema_version: 20180708
+name: gofn
+version: 0.0.23
+runtime: go
+entrypoint: ./func

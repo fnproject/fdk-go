@@ -162,11 +162,46 @@ func withHTTPContext(ctx context.Context) context.Context {
 	return WithContext(ctx, hctx)
 }
 
+func setTracingContext(config map[string]string, header http.Header) tracingCtx {
+	if config["OCI_TRACING_ENABLED"] == "0" {
+		// When tracing is not enabled then we
+		// assign empty tracing context to
+		// the context
+		return tracingCtx{}
+	}
+	tctx := tracingCtx{
+		traceCollectorURL: config["OCI_TRACE_COLLECTOR_URL"],
+		traceId:           header.Get("x-b3-traceid"),
+		spanId:            header.Get("x-b3-spanid"),
+		parentSpanId:      header.Get("x-b3-parentspanid"),
+		flags:             header.Get("x-b3-flags"),
+		sampled:           true,
+		serviceName:       strings.ToLower(config["FN_APP_NAME"] + "::" + config["FN_FN_NAME"]),
+	}
+
+	if header.Get("x-b3-sampled") != "" {
+		isSampled, err := strconv.ParseBool(header.Get("x-b3-sampled"))
+		if err == nil {
+			tctx.sampled = isSampled
+		}
+	}
+
+	isEnabled, err := strconv.ParseBool(config["OCI_TRACING_ENABLED"])
+	tctx.tracingEnabled = false
+	if err == nil {
+		tctx.tracingEnabled = isEnabled
+	}
+
+	return tctx
+}
+
 func withBaseContext(ctx context.Context, r *http.Request) (_ context.Context, cancel func()) {
+	configData := buildConfig() // from env vars (stinky, but effective...)
 	rctx := baseCtx{
-		config: buildConfig(), // from env vars (stinky, but effective...)
-		callID: r.Header.Get("Fn-Call-Id"),
-		header: r.Header,
+		config:         configData,
+		callID:         r.Header.Get("Fn-Call-Id"),
+		header:         r.Header,
+		tracingContext: setTracingContext(configData, r.Header),
 	}
 
 	ctx = WithContext(ctx, rctx)
