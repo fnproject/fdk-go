@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 #
 # Copyright (c) 2019, 2020 Oracle and/or its affiliates. All rights reserved.
 #
@@ -14,6 +15,10 @@
 # limitations under the License.
 #
 
-FROM golang:1.12.7-alpine3.10
 
-RUN apk add --no-cache wget curl git bzr mercurial build-base
+user="fnproject"
+image="go"
+
+runtime115="1.15"
+docker push ${user}/${image}:${runtime115}
+docker push ${user}/${image}:${runtime115}-dev

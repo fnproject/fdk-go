@@ -1,0 +1,72 @@
+#
+# Copyright (c) 2019, 2020 Oracle and/or its affiliates. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+version: 2
+
+jobs:
+  build:
+    docker:
+      - auth:
+          password: $DOCKER_PASS
+          username: $DOCKER_USER
+        image: circleci/golang:1.15
+    steps:
+      - checkout
+      - run: 'go build ./...'
+  test:
+    docker:
+      - auth:
+          password: $DOCKER_PASS
+          username: $DOCKER_USER
+        image: circleci/golang:1.15
+    steps:
+      - checkout
+      - run: 'go test ./...'
+  deploy:
+    docker:
+      - auth:
+          password: $DOCKER_PASS
+          username: $DOCKER_USER
+        image: circleci/golang:1.15
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: false
+      - run: 'docker version'
+      - deploy:
+          command: |
+            if [[ "${CIRCLE_BRANCH}" == "master" && -z "${CIRCLE_PR_REPONAME}" ]]; then
+              git config --global user.email "ci@fnproject.com"
+              git config --global user.name "CI"
+              git branch --set-upstream-to=origin/${CIRCLE_BRANCH} ${CIRCLE_BRANCH}
+
+              # Build images
+              ./build-images.sh 1.15
+
+              # Push images
+              ./release_images.sh
+
+              # Release on SCM
+              ./release.sh
+            fi
+    working_directory: ~/fdk-go
+workflows:
+  commit:
+    jobs:
+      - build
+      - test
+      - deploy
+  version: 2

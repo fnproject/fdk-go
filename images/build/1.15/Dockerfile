@@ -14,10 +14,6 @@
 # limitations under the License.
 #
 
-FROM alpine:3.10
+FROM golang:1.15-alpine3.13
 
-RUN apk update && apk upgrade \
-  && apk add ca-certificates \
-  && rm -rf /var/cache/apk/*
-
-RUN addgroup -g 1000 -S fn && adduser -S -u 1000 -G fn fn
+RUN apk add --no-cache wget curl alpine-sdk
