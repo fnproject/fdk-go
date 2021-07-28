@@ -30,4 +30,5 @@ echo ${OCIR_PASSWORD} | docker login --username "${OCIR_USERNAME}" --password-st
   source internal/build-scripts/build_test_image.sh internal/tests-images/go1.15/hello-world-test 1.15
   source internal/build-scripts/build_test_image.sh internal/tests-images/go1.15/runtime-version-test 1.15
   source internal/build-scripts/build_test_image.sh internal/tests-images/go1.15/timeout-test 1.15
+  source internal/build-scripts/build_test_image.sh internal/tests-images/go1.15/oci-sdk-test 1.15
 )

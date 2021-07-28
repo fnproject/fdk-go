@@ -19,7 +19,7 @@ package main
 import (
 	"context"
 	"io"
-	"log"
+	"fmt"
 	fdk "github.com/fnproject/fdk-go"
 	"runtime"
 )
@@ -30,18 +30,15 @@ func main() {
 
 func myHandler(ctx context.Context, in io.Reader, out io.Writer) {
 
-	log.Print("Inside Go function, Evaluating go version")
+	fmt.Println("Inside Go runtime version test version")
     version := runtime.Version()
-    log.Print(version)
+    fmt.Println("Version:",version)
 
     written, err := out.Write([]byte(version))
-
     if err != nil {
-        log.Fatal(err)
-        return
+        panic(err)
     }
     if written != len(version) {
-        log.Fatal("Not all bytes written")
-        return
+        panic("Not all bytes written")
     }
 }

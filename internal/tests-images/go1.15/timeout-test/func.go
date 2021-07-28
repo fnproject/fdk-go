@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	fdk "github.com/fnproject/fdk-go"
 	"time"
 )
@@ -35,6 +34,9 @@ type Person struct {
 }
 
 func myHandler(ctx context.Context, in io.Reader, out io.Writer) {
+
+    fmt.Println("Inside Go runtime version test version")
+
 	p := &Person{Name: "World"}
 	json.NewDecoder(in).Decode(p)
 	msg := struct {
@@ -42,8 +44,8 @@ func myHandler(ctx context.Context, in io.Reader, out io.Writer) {
 	}{
 		Msg: fmt.Sprintf("Hello %s", p.Name),
 	}
-	log.Print("Inside Go function, starting sleep for 7 sec")
+	fmt.Println("Inside Go function, starting sleep for 7 sec")
     time.Sleep(7 * time.Second)
-    log.Print("Inside Go function, 7 sec sleep over")
+    fmt.Println("Inside Go function, 7 sec sleep over")
 	json.NewEncoder(out).Encode(&msg)
 }

@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
     fdk "github.com/fnproject/fdk-go"
 )
 
@@ -34,6 +33,8 @@ type Person struct {
 }
 
 func myHandler(ctx context.Context, in io.Reader, out io.Writer) {
+	fmt.Println("Inside Go Hello World Test function")
+
 	p := &Person{Name: "World"}
 	json.NewDecoder(in).Decode(p)
 	msg := struct {
@@ -41,21 +42,15 @@ func myHandler(ctx context.Context, in io.Reader, out io.Writer) {
 	}{
 		Msg: fmt.Sprintf("Hello %s", p.Name),
 	}
-	log.Print("Inside Go Hello World function")
-
 	blob, err := json.Marshal(&msg)
     if err != nil {
-        fmt.Println(err)
-        return
+        panic(err)
     }
     written, err := out.Write(blob)
-
     if err != nil {
-        log.Fatal(err)
-        return
+       panic(err)
     }
     if written != len(blob) {
-  		log.Fatal("Not all bytes written")
-        return
+  		panic("Not all bytes written")
   	}
 }

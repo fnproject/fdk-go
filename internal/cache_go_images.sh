@@ -8,4 +8,3 @@ set -ex
 
 docker pull docker-remote.artifactory.oci.oraclecorp.com/golang:1.15-alpine3.13
 docker pull docker-remote.artifactory.oci.oraclecorp.com/alpine:3.13
-docker pull docker-remote.artifactory.oci.oraclecorp.com/golang:1.15-buster
