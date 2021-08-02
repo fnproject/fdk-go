@@ -16,9 +16,14 @@
 
 package fdk
 
-import "fmt"
+import (
+	"fmt"
+	"runtime"
+	"strings"
+)
 
 // Version is the FDK version
 const Version = "0.0.6"
 
 var versionHeader = fmt.Sprintf("fdk-go/%s", Version)
+var runtimeHeader = fmt.Sprintf("go:%s", strings.TrimLeft(runtime.Version(), "go")) // Converting to format go:1.x
