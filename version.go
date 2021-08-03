@@ -19,6 +19,6 @@ package fdk
 import "fmt"
 
 // Version is the FDK version
-const Version = "0.0.9"
+const Version = "0.0.10"
 
 var versionHeader = fmt.Sprintf("fdk-go/%s", Version)
