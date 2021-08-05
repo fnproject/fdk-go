@@ -10,7 +10,8 @@ test images of functions and pushes them to OCIR.
 -   internal/images - Contains dockerfiles to support the building of base fdk build and runtime images.
 -   internal/tests-images - Contains source code of test functions for different go runtime versions.
 -   internal/cache_go_images - This script pulls go images from docker hub and caches them in artifactory
--   internal/orchestrator.sh - This script helps to run fdk-go unit tests and related build pipeline.
+-   internal/build_orchestrator.sh - This script helps to run fdk-go unit tests and related build pipeline.
+-   internal/release - Contains scripts to support release of fdk go tags and docker artifacts to remote repositories.
 
 ## Steps to generate the test function images and push them to OCIR
 
@@ -31,7 +32,7 @@ test images of functions and pushes them to OCIR.
     ```
 -   Run the script to build all the artifacts and test images.
     ```sh
-    ./internal/build-scripts/orchestrator.sh
+    ./internal/build-scripts/build_orchestrator.sh
     ```
 ## Cache go docker images in artifactory
 -   Since artifactory functions as a caching proxy for DockerHub, any image pulled from dockerhub will be cached in artifactory.
