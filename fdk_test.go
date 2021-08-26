@@ -132,6 +132,14 @@ func TestHTTPStreamSock(t *testing.T) {
 		t.Fatal("got wrong status code:", res.StatusCode)
 	}
 
+	if res.Header.Get("Fn-Fdk-Version") != versionHeader {
+		t.Errorf("Expected \"%s\" but got \"%s\"", versionHeader, res.Header.Get("Fn-Fdk-Version"))
+	}
+
+	if res.Header.Get("Fn-Fdk-Runtime") != runtimeHeader {
+		t.Errorf("Expected \"%s\" but got \"%s\"", runtimeHeader, res.Header.Get("Fn-Fdk-Runtime"))
+	}
+
 	outBody, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		t.Fatal(err)
