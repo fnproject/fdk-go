@@ -71,6 +71,7 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// send back our version
 	w.Header().Set("Fn-Fdk-Version", versionHeader)
+	w.Header().Set("Fn-Fdk-Runtime", runtimeHeader)
 
 	// XXX(reed): 504 if ctx is past due / handle errors with 5xx? just 200 for now
 	// copy response from user back up now with headers in place...
