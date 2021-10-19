@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 FROM docker-remote.artifactory.oci.oraclecorp.com/golang:1.15-alpine3.13
 
 RUN apk add --no-cache wget curl alpine-sdk

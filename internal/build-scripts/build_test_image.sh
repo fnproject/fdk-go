@@ -51,7 +51,7 @@ pkg_version=${BUILD_VERSION}
   image_identifier="${version}${go_version}-${BUILD_VERSION}"
   echo "image_identifier:$image_identifier"
 
-  docker build -t fnproject/${name}:${image_identifier} -f Dockerfile --build-arg GO_VERSION=${go_version} .
+  docker build -t fnproject/${name}:${image_identifier} -f Build_file --build-arg GO_VERSION=${go_version} .
   popd
 
   #OCIR path
