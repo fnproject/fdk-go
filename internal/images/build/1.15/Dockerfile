@@ -14,58 +14,6 @@
 # limitations under the License.
 #
 
-FROM docker-remote.artifactory.oci.oraclecorp.com/oraclelinux:8-slim
+FROM docker-remote.artifactory.oci.oraclecorp.com/golang:1.15-alpine3.13
 
-RUN set -eux; \
-	microdnf update; \
-	microdnf install \
-    glibc wget gzip tar; \
-  microdnf clean all;
-
-ENV PATH /usr/local/go/bin:$PATH
-
-ENV GOLANG_VERSION 1.15.15
-
-RUN set -eux; \
-	arch="$(arch)"; \
-	url=; \
-	case "$arch" in \
-		'x86_64') \
-			url='https://dl.google.com/go/go1.15.15.linux-amd64.tar.gz'; \
-			sha256='0885cf046a9f099e260d98d9ec5d19ea9328f34c8dc4956e1d3cd87daaddb345'; \
-			;; \
-		'arm64') \
-			url='https://dl.google.com/go/go1.15.15.linux-arm64.tar.gz'; \
-			sha256='714abb01af210473dd6af331094ad6847162eff81a7fc7241d24f5a85496c9fa'; \
-			;; \
-		'aarch64') \
-			url='https://dl.google.com/go/go1.15.15.linux-arm64.tar.gz'; \
-			sha256='714abb01af210473dd6af331094ad6847162eff81a7fc7241d24f5a85496c9fa'; \
-			;; \
-		*) echo >&2 "error: unsupported architecture '$arch' (likely packaging update needed)"; exit 1 ;; \
-	esac; \
-	if [ -z "$url" ]; then \
-		echo >&2; \
-		echo >&2 "warning: current architecture ($arch) does not have a compatible Go binary release"; \
-		echo >&2; \
-	fi; \
-	\
-	wget -O go.tgz.asc "$url.asc"; \
-	wget -O go.tgz "$url" --progress=dot:giga; \
-	echo "$sha256 *go.tgz" | sha256sum -c -; \
-	GNUPGHOME="$(mktemp -d)"; \
-    export GNUPGHOME; \
-	gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 'EB4C 1BFD 4F04 2F6D DDCC EC91 7721 F63B D38B 4796'; \
-	gpg --batch --verify go.tgz.asc go.tgz; \
-	gpgconf --kill all; \
-	rm -rf "$GNUPGHOME" go.tgz.asc; \
-    mkdir -p /usr/local; \
-	tar -C /usr/local -xzf go.tgz; \
-	rm go.tgz; \
-	go version
-
-ENV GOPATH /go
-ENV PATH $GOPATH/bin:$PATH
-RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
-WORKDIR $GOPATH
-CMD ["/bin/go", "version"]
+RUN apk add --no-cache wget curl alpine-sdk
