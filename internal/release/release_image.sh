@@ -28,6 +28,5 @@ image="go"
 
 echo "Pushing release images for Go Runtime Version ${go_version}"
 
-docker push ${user}/${image}:${go_version}
-docker push ${user}/${image}:${go_version}-dev
-
+docker push ${user}/${image}:${go_version}-alpine
+docker push ${user}/${image}:${go_version}-alpine-dev

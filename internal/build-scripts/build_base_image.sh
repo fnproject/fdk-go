@@ -27,5 +27,5 @@ fi
 
 goversion=$1
 
-pushd internal/images/build/${goversion} && docker build -t fnproject/go:${goversion}-dev . && popd
-pushd internal/images/runtime/${goversion} && docker build -t fnproject/go:${goversion} . && popd
+pushd internal/images/build/${goversion} && docker build -t fnproject/go:${goversion}-alpine-dev . && popd
+pushd internal/images/runtime/${goversion} && docker build -t fnproject/go:${goversion}-alpine . && popd
