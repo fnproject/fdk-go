@@ -28,5 +28,14 @@ image="go"
 
 echo "Pushing release images for Go Runtime Version ${go_version}"
 
-docker push ${user}/${image}:${go_version}
-docker push ${user}/${image}:${go_version}-dev
+docker pull ${OCIR_REGION}/${OCIR_LOC}/gofdk:${go_version}-${BUILD_VERSION}-dev
+docker pull ${OCIR_REGION}/${OCIR_LOC}/gofdk:${go_version}-${BUILD_VERSION}
+
+docker image tag ${OCIR_REGION}/${OCIR_LOC}/gofdk:${go_version}-${BUILD_VERSION}-dev ${OCIR_REGION}/${OCIR_LOC}/${user}/${image}:${go_version}-dev
+docker image tag ${OCIR_REGION}/${OCIR_LOC}/gofdk:${go_version}-${BUILD_VERSION} ${OCIR_REGION}/${OCIR_LOC}/${user}/${image}:${go_version}
+
+docker image push ${OCIR_REGION}/${OCIR_LOC}/${user}/${image}:${go_version}-dev
+docker image push ${OCIR_REGION}/${OCIR_LOC}/${user}/${image}:${go_version}
+
+#docker push ${user}/${image}:${go_version}
+#docker push ${user}/${image}:${go_version}-dev

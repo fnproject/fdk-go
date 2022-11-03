@@ -15,7 +15,7 @@
 #
 # Docker for creating container to run unit tests
 
-FROM docker-remote.artifactory.oci.oraclecorp.com/oraclelinux:8-slim
+FROM container-registry.oracle.com/os/oraclelinux:8-slim
 
 RUN set -eux; \
 	microdnf update; \

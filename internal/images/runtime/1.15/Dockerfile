@@ -13,5 +13,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM docker-remote.artifactory.oci.oraclecorp.com/oraclelinux:8-slim as builder
+FROM --platform=$BUILDPLATFORM container-registry.oracle.com/os/oraclelinux:8-slim as builder
 RUN groupadd --gid 1000 fn && adduser --uid 1000 --gid fn fn
