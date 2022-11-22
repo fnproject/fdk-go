@@ -31,11 +31,15 @@ echo "Pushing release images for Go Runtime Version ${go_version}"
 docker pull ${OCIR_REGION}/${OCIR_LOC}/gofdk:${go_version}-${BUILD_VERSION}-dev
 docker pull ${OCIR_REGION}/${OCIR_LOC}/gofdk:${go_version}-${BUILD_VERSION}
 
-docker image tag ${OCIR_REGION}/${OCIR_LOC}/gofdk:${go_version}-${BUILD_VERSION}-dev ${OCIR_REGION}/${OCIR_LOC}/${user}/${image}:${go_version}-dev
-docker image tag ${OCIR_REGION}/${OCIR_LOC}/gofdk:${go_version}-${BUILD_VERSION} ${OCIR_REGION}/${OCIR_LOC}/${user}/${image}:${go_version}
+docker image tag ${OCIR_REGION}/${OCIR_LOC}/gofdk:${go_version}-${BUILD_VERSION}-dev ${user}/${image}:${go_version}-dev
+docker image tag ${OCIR_REGION}/${OCIR_LOC}/gofdk:${go_version}-${BUILD_VERSION} ${user}/${image}:${go_version}
 
-docker image push ${OCIR_REGION}/${OCIR_LOC}/${user}/${image}:${go_version}-dev
-docker image push ${OCIR_REGION}/${OCIR_LOC}/${user}/${image}:${go_version}
+docker image push ${user}/${image}:${go_version}-dev
+docker image push ${user}/${image}:${go_version}
 
-#docker push ${user}/${image}:${go_version}
-#docker push ${user}/${image}:${go_version}-dev
+#Steps to push image to temporary repo in OCIR
+#docker image tag ${OCIR_REGION}/${OCIR_LOC}/gofdk:${go_version}-${BUILD_VERSION}-dev ${OCIR_REGION}/${OCIR_LOC}/${user}/${image}:${go_version}-dev
+#docker image tag ${OCIR_REGION}/${OCIR_LOC}/gofdk:${go_version}-${BUILD_VERSION} ${OCIR_REGION}/${OCIR_LOC}/${user}/${image}:${go_version}
+
+#docker image push ${OCIR_REGION}/${OCIR_LOC}/${user}/${image}:${go_version}-dev
+#docker image push ${OCIR_REGION}/${OCIR_LOC}/${user}/${image}:${go_version}
