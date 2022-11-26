@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-FROM --platform=$BUILDPLATFORM container-registry.oracle.com/os/oraclelinux:8-slim
+FROM --platform=$TARGETPLATFORM container-registry.oracle.com/os/oraclelinux:8-slim
 
 RUN set -eux; \
 	microdnf update; \
@@ -60,9 +60,10 @@ RUN set -eux; \
 	gpgconf --kill all; \
 	rm -rf "$GNUPGHOME" go.tgz.asc; \
     mkdir -p /usr/local; \
-	tar -C /usr/local -xzf go.tgz; \
-	rm go.tgz; \
-	go version
+	gzip -d go.tgz; \
+	tar -C /usr/local -xpf go.tar; \
+	rm go.tar; \
+	go version;
 
 ENV GOPATH /go
 ENV PATH $GOPATH/bin:$PATH

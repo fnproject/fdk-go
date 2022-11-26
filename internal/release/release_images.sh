@@ -30,6 +30,9 @@ if [ "${RUN_TYPE}" = "release" ]; then
   echo "Deploying fdk go build and runtime images to dockerhub."
   set +x
   echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
+  #Install regctl
+  curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
+  chmod 755 regctl
   set -x
   ./internal/release/release_image.sh 1.15
 fi
