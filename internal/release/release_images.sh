@@ -27,9 +27,12 @@ export RUN_TYPE
 # Deploying images to dockerhub
 if [ "${RUN_TYPE}" = "release" ]; then
   # Release base fdk build and runtime images
-  echo "Deploying fdk go build and runtime images to dockerhub."
+  echo "Deploying fdk go build and runtime images to artifactory"
   set +x
-  echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
+  echo "Deploying images to artifactory and ocir."
+  echo ${ARTIFACTORY_PASS} | docker login -u ${ARTIFACTORY_USER} --password-stdin odo-docker-signed-local.artifactory.oci.oraclecorp.com:443
+  echo ${OCIR_OFDM_PASSWORD} | docker login -u ${OCIR_OFDM_USERNAME} --password-stdin iad.ocir.io
+
   #Install regctl
   curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
   chmod 755 regctl
