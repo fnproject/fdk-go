@@ -27,10 +27,6 @@ fi
 
 goversion=$1
 
-#Login to OCIR
-
-echo ${OCIR_PASSWORD} | docker login --username "${OCIR_USERNAME}" --password-stdin ${OCIR_REGION}
-
-pushd internal/images/build/${goversion} && docker buildx build --push --platform linux/amd64,linux/arm64 -t "${OCIR_REGION}/${OCIR_LOC}/gofdk:${goversion}-${BUILD_VERSION}-dev" .  && popd
+pushd internal/images/build/${goversion}  && docker buildx build --push --platform linux/amd64,linux/arm64 -t "${OCIR_REGION}/${OCIR_LOC}/gofdk:${goversion}-${BUILD_VERSION}-dev" .  && popd
 
 pushd internal/images/runtime/${goversion} && docker buildx build --push --platform linux/amd64,linux/arm64 -t "${OCIR_REGION}/${OCIR_LOC}/gofdk:${goversion}-${BUILD_VERSION}" . && popd
