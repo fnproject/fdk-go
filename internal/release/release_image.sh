@@ -26,18 +26,21 @@ go_version=$1
 user="fnproject"
 image="go"
 OCIR_REPO=iad.ocir.io/oraclefunctionsdevelopm
-ARTIFACTORY_REPO=odo-docker-signed-local.artifactory.oci.oraclecorp.com:443
+#ARTIFACTORY_REPO=odo-docker-signed-local.artifactory.oci.oraclecorp.com:443
 
 echo "Pushing release images for Go Runtime Version ${go_version}"
 
 # Release dev image to OCIR
 ./regctl image copy ${OCIR_REGION}/${OCIR_LOC}/gofdk:${go_version}-${BUILD_VERSION}-dev ${OCIR_REPO}/${user}/${image}:${go_version}-dev
 
+
+#Disabling the Release to OCI Artifactory as the same version is released and artifacts with same version can't be overridden in OCI Artifactory
 # Release dev image to signed artifactory
-./regctl image copy ${OCIR_REGION}/${OCIR_LOC}/gofdk:${go_version}-${BUILD_VERSION}-dev ${ARTIFACTORY_REPO}/${user}/${image}:${go_version}-dev
+#./regctl image copy ${OCIR_REGION}/${OCIR_LOC}/gofdk:${go_version}-${BUILD_VERSION}-dev ${ARTIFACTORY_REPO}/${user}/${image}:${go_version}-dev
 
 # Release go-fdk image to OCIR
 ./regctl image copy ${OCIR_REGION}/${OCIR_LOC}/gofdk:${go_version}-${BUILD_VERSION} ${OCIR_REPO}/${user}/${image}:${go_version}
 
+#Disabling the Release to OCI Artifactory as the same version is released and artifacts with same version can't be overridden in OCI Artifactory
 # Release go-fdk image to signed artifactory
-./regctl image copy ${OCIR_REGION}/${OCIR_LOC}/gofdk:${go_version}-${BUILD_VERSION} ${ARTIFACTORY_REPO}/${user}/${image}:${go_version}
+#./regctl image copy ${OCIR_REGION}/${OCIR_LOC}/gofdk:${go_version}-${BUILD_VERSION} ${ARTIFACTORY_REPO}/${user}/${image}:${go_version}
