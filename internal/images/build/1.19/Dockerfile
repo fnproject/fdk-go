@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-FROM --platform=$TARGETPLATFORM container-registry.oracle.com/os/oraclelinux:8-slim
+FROM --platform=$TARGETPLATFORM ocr-docker-remote.artifactory.oci.oraclecorp.com/os/oraclelinux:8-slim
 
 RUN set -eux; \
 	microdnf update; \
@@ -24,23 +24,23 @@ RUN set -eux; \
 
 ENV PATH /usr/local/go/bin:$PATH
 
-ENV GOLANG_VERSION 1.15.15
+ENV GOLANG_VERSION 1.19.4
 
 RUN set -eux; \
 	arch="$(arch)"; \
 	url=; \
 	case "$arch" in \
 		'x86_64') \
-			url='https://dl.google.com/go/go1.15.15.linux-amd64.tar.gz'; \
-			sha256='0885cf046a9f099e260d98d9ec5d19ea9328f34c8dc4956e1d3cd87daaddb345'; \
+			url='https://dl.google.com/go/go1.19.4.linux-amd64.tar.gz'; \
+            sha256='c9c08f783325c4cf840a94333159cc937f05f75d36a8b307951d5bd959cf2ab8'; \
 			;; \
 		'arm64') \
-			url='https://dl.google.com/go/go1.15.15.linux-arm64.tar.gz'; \
-			sha256='714abb01af210473dd6af331094ad6847162eff81a7fc7241d24f5a85496c9fa'; \
+			url='https://dl.google.com/go/go1.19.4.linux-arm64.tar.gz'; \
+            sha256='9df122d6baf6f2275270306b92af3b09d7973fb1259257e284dba33c0db14f1b'; \
 			;; \
 		'aarch64') \
-			url='https://dl.google.com/go/go1.15.15.linux-arm64.tar.gz'; \
-			sha256='714abb01af210473dd6af331094ad6847162eff81a7fc7241d24f5a85496c9fa'; \
+			url='https://dl.google.com/go/go1.19.4.linux-arm64.tar.gz'; \
+            sha256='9df122d6baf6f2275270306b92af3b09d7973fb1259257e284dba33c0db14f1b'; \
 			;; \
 		*) echo >&2 "error: unsupported architecture '$arch' (likely packaging update needed)"; exit 1 ;; \
 	esac; \

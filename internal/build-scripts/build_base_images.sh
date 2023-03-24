@@ -33,5 +33,6 @@ set -xe
   ./internal/build-scripts/update-buildx.sh
 
   # Build base fdk build and runtime images
-  ./internal/build-scripts/build_base_image.sh 1.15
+  ./internal/build-scripts/build_base_image.sh 1.19
+  ./internal/build-scripts/build_base_image.sh 1.18
 )

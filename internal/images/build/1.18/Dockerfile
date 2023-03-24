@@ -13,35 +13,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Docker for creating container to run unit tests
 
-FROM ocr-docker-remote.artifactory.oci.oraclecorp.com/os/oraclelinux:8-slim
+FROM --platform=$TARGETPLATFORM ocr-docker-remote.artifactory.oci.oraclecorp.com/os/oraclelinux:8-slim
 
 RUN set -eux; \
 	microdnf update; \
 	microdnf install \
-    glibc wget gzip tar gcc; \
+    glibc wget gzip tar; \
   microdnf clean all;
 
 ENV PATH /usr/local/go/bin:$PATH
 
-ENV GOLANG_VERSION 1.19.4
+ENV GOLANG_VERSION 1.18.8
 
 RUN set -eux; \
 	arch="$(arch)"; \
 	url=; \
 	case "$arch" in \
 		'x86_64') \
-			url='https://dl.google.com/go/go1.19.4.linux-amd64.tar.gz'; \
-			sha256='c9c08f783325c4cf840a94333159cc937f05f75d36a8b307951d5bd959cf2ab8'; \
+			url='https://dl.google.com/go/go1.18.8.linux-amd64.tar.gz'; \
+			sha256='4d854c7bad52d53470cf32f1b287a5c0c441dc6b98306dea27358e099698142a'; \
 			;; \
 		'arm64') \
-			url='https://dl.google.com/go/go1.19.4.linux-arm64.tar.gz'; \
-			sha256='9df122d6baf6f2275270306b92af3b09d7973fb1259257e284dba33c0db14f1b'; \
+			url='https://dl.google.com/go/go1.18.8.linux-arm64.tar.gz'; \
+			sha256='df71bc84d84f7f62dad06aca5e1b8234045dce94a94dcefe71af0cb8f6e93a87'; \
 			;; \
 		'aarch64') \
-			url='https://dl.google.com/go/go1.19.4.linux-arm64.tar.gz'; \
-			sha256='9df122d6baf6f2275270306b92af3b09d7973fb1259257e284dba33c0db14f1b'; \
+			url='https://dl.google.com/go/go1.18.8.linux-arm64.tar.gz'; \
+			sha256='df71bc84d84f7f62dad06aca5e1b8234045dce94a94dcefe71af0cb8f6e93a87'; \
 			;; \
 		*) echo >&2 "error: unsupported architecture '$arch' (likely packaging update needed)"; exit 1 ;; \
 	esac; \
@@ -50,26 +49,24 @@ RUN set -eux; \
 		echo >&2 "warning: current architecture ($arch) does not have a compatible Go binary release"; \
 		echo >&2; \
 	fi; \
+	\
 	wget -O go.tgz.asc "$url.asc"; \
 	wget -O go.tgz "$url" --progress=dot:giga; \
 	echo "$sha256 *go.tgz" | sha256sum -c -; \
 	GNUPGHOME="$(mktemp -d)"; \
-	export GNUPGHOME;\
-    gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 'EB4C 1BFD 4F04 2F6D DDCC EC91 7721 F63B D38B 4796'; \
+    export GNUPGHOME; \
+	gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 'EB4C 1BFD 4F04 2F6D DDCC EC91 7721 F63B D38B 4796'; \
 	gpg --batch --verify go.tgz.asc go.tgz; \
 	gpgconf --kill all; \
 	rm -rf "$GNUPGHOME" go.tgz.asc; \
- 	mkdir -p /usr/local; \
-	tar -C /usr/local -xzf go.tgz; \
-	rm go.tgz; \
-	go version
+    mkdir -p /usr/local; \
+	gzip -d go.tgz; \
+	tar -C /usr/local -xpf go.tar; \
+	rm go.tar; \
+	go version;
 
 ENV GOPATH /go
 ENV PATH $GOPATH/bin:$PATH
 RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
 WORKDIR $GOPATH
 CMD ["/bin/go", "version"]
-
-RUN mkdir  /build
-WORKDIR /build
-

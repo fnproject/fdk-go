@@ -13,5 +13,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM --platform=$TARGETPLATFORM container-registry.oracle.com/os/oraclelinux:8-slim as builder
+FROM --platform=$TARGETPLATFORM ocr-docker-remote.artifactory.oci.oraclecorp.com/os/oraclelinux:8-slim as builder
 RUN groupadd --gid 1000 fn && adduser --uid 1000 --gid fn fn
