@@ -27,6 +27,10 @@ LOCAL=${LOCAL:-true}
 export BUILD_VERSION
 export LOCAL
 
+# Update buildx and prepare builderInstance
+./internal/build-scripts/init-buildx.sh
+
+
 #Unit test run section
 (
   mydir=$(cd "$(dirname "$0")"; pwd)

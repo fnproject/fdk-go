@@ -51,14 +51,11 @@ pkg_version=${BUILD_VERSION}
   image_identifier="${version}${go_version}-${BUILD_VERSION}"
   echo "image_identifier:$image_identifier"
 
-  docker build -t fnproject/${name}:${image_identifier} -f Build_file --build-arg GO_VERSION=${go_version} --build-arg OCIR_REGION=${OCIR_REGION} --build-arg OCIR_LOC=${OCIR_LOC} --build-arg BUILD_VERSION=${BUILD_VERSION} .
-  popd
-
   #OCIR path
   ocir_image="${OCIR_LOC}/${name}:${image_identifier}"
 
-  docker image tag "fnproject/${name}:${image_identifier}" "${OCIR_REGION}/${ocir_image}"
-  docker image push "${OCIR_REGION}/${ocir_image}"
+  docker buildx build --push --platform linux/amd64,linux/arm64 -t "${OCIR_REGION}/${ocir_image}" -f Build_file --build-arg GO_VERSION=${go_version} --build-arg OCIR_REGION=${OCIR_REGION} --build-arg OCIR_LOC=${OCIR_LOC} --build-arg BUILD_VERSION=${BUILD_VERSION} .
+  popd
 
   #Delete the fdk related source code
   source internal/build-scripts/cleanup_source_pkg.sh $fn_dir
