@@ -35,6 +35,6 @@ if [ "${RUN_TYPE}" = "release" ]; then
   curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
   chmod 755 regctl
   set -x
+  ./internal/release/release_image.sh 1.20
   ./internal/release/release_image.sh 1.19
-  ./internal/release/release_image.sh 1.18
 fi

@@ -24,6 +24,6 @@ set -xe
   echo "${OCIR_PASSWORD}" | docker login --username "${OCIR_USERNAME}" --password-stdin ${OCIR_REGION}
 
   # Build base fdk build and runtime images
+  ./internal/build-scripts/build_base_image.sh 1.20
   ./internal/build-scripts/build_base_image.sh 1.19
-  ./internal/build-scripts/build_base_image.sh 1.18
 )

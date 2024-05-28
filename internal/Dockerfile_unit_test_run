@@ -25,23 +25,23 @@ RUN set -eux; \
 
 ENV PATH /usr/local/go/bin:$PATH
 
-ENV GOLANG_VERSION 1.19.4
+ENV GOLANG_VERSION 1.20.12
 
 RUN set -eux; \
 	arch="$(arch)"; \
 	url=; \
 	case "$arch" in \
 		'x86_64') \
-			url='https://dl.google.com/go/go1.19.4.linux-amd64.tar.gz'; \
-			sha256='c9c08f783325c4cf840a94333159cc937f05f75d36a8b307951d5bd959cf2ab8'; \
+			url='https://dl.google.com/go/go1.20.12.linux-amd64.tar.gz'; \
+            sha256='9c5d48c54dd8b0a3b2ef91b0f92a1190aa01f11d26e98033efa64c46a30bba7b'; \
 			;; \
 		'arm64') \
-			url='https://dl.google.com/go/go1.19.4.linux-arm64.tar.gz'; \
-			sha256='9df122d6baf6f2275270306b92af3b09d7973fb1259257e284dba33c0db14f1b'; \
+			url='https://dl.google.com/go/go1.20.12.linux-arm64.tar.gz'; \
+            sha256='8afe8e3fb6972eaa2179ef0a71678c67f26509fab4f0f67c4b00f4cdfa92dc87'; \
 			;; \
 		'aarch64') \
-			url='https://dl.google.com/go/go1.19.4.linux-arm64.tar.gz'; \
-			sha256='9df122d6baf6f2275270306b92af3b09d7973fb1259257e284dba33c0db14f1b'; \
+			url='https://dl.google.com/go/go1.20.12.linux-arm64.tar.gz'; \
+            sha256='8afe8e3fb6972eaa2179ef0a71678c67f26509fab4f0f67c4b00f4cdfa92dc87'; \
 			;; \
 		*) echo >&2 "error: unsupported architecture '$arch' (likely packaging update needed)"; exit 1 ;; \
 	esac; \

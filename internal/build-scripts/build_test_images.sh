@@ -25,15 +25,15 @@ set -e +x
 echo ${OCIR_PASSWORD} | docker login --username "${OCIR_USERNAME}" --password-stdin ${OCIR_REGION}
 
 # Build and push the test function images to OCIR for integration test framework.
-# Go 1.19
+# Go 1.20
 (
-  source internal/build-scripts/build_test_image.sh internal/tests-images/go1.19/hello-world-test 1.19
-  source internal/build-scripts/build_test_image.sh internal/tests-images/go1.19/runtime-version-test 1.19
-  source internal/build-scripts/build_test_image.sh internal/tests-images/go1.19/timeout-test 1.19
-  source internal/build-scripts/build_test_image.sh internal/tests-images/go1.19/oci-sdk-test 1.19
+  source internal/build-scripts/build_test_image.sh internal/tests-images/go1.20/hello-world-test 1.20
+  source internal/build-scripts/build_test_image.sh internal/tests-images/go1.20/runtime-version-test 1.20
+  source internal/build-scripts/build_test_image.sh internal/tests-images/go1.20/timeout-test 1.20
+  source internal/build-scripts/build_test_image.sh internal/tests-images/go1.20/oci-sdk-test 1.20
 )
 
-# Go 1.18
+# Go 1.19
 (
-  source internal/build-scripts/build_test_image.sh internal/tests-images/go1.18/runtime-version-test 1.18
+  source internal/build-scripts/build_test_image.sh internal/tests-images/go1.19/runtime-version-test 1.19
 )
