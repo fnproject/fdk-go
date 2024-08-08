@@ -1,10 +1,11 @@
 RAW_VERSION=$(shell grep -m1 -Eo "[0-9]+\.[0-9]+\.[0-9]+" version.go)
-FDK_VERSION=$(RAW_VERSION)$(if $(BLD_BRANCH_SUFFIX),.$(BLD_NUMBER)$(BLD_BRANCH_SUFFIX),)
+FDK_VERSION=$(RAW_VERSION).$(BLD_NUMBER)$(BLD_BRANCH_SUFFIX)
 
 .PHONY: set_fdk_version set_image_version setup_test_image_build
 
 set_fdk_version:
 	echo "version: \"$(FDK_VERSION)\"" > $(BLD_INPUT_DIR)/buildOverrideVariables.conf
+	echo "fdk_version=$(FDK_VERSION)" >> $(BLD_INPUT_DIR)/exportVariables.env
 
 set_image_version:
 	echo "version: \"$(GO_VERSION)-$(FDK_VERSION)$(if $(VERSION_SUFFIX),-$(VERSION_SUFFIX),)\"" > $(BLD_INPUT_DIR)/buildOverrideVariables.conf
