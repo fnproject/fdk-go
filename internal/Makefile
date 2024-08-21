@@ -1,5 +1,9 @@
 RAW_VERSION=$(shell grep -m1 -Eo "[0-9]+\.[0-9]+\.[0-9]+" version.go)
+ifeq ($(RELEASE), true)
+FDK_VERSION=$(RAW_VERSION)
+else
 FDK_VERSION=$(RAW_VERSION).$(BLD_NUMBER)$(BLD_BRANCH_SUFFIX)
+endif
 
 .PHONY: set_fdk_version set_image_version setup_test_image_build
 
