@@ -6,8 +6,12 @@ failImmediatelyOnError: true
 timeoutInSeconds: 36000
 
 env:
-  vaultVariables:
-    FDK_CONFIG_PRIVATE_KEY: ocid1.vaultsecret.oc1.phx.amaaaaaaepf6idiavyptfi77vodnqoese5u5sa5jl52ksdraty7s4ch2vtnq
+  variables:
+      REGION: us-ashburn-1
+      STAGE: pipeline
+      MULTI_ARCH_ENABLED: True
+      OCIR_LOC: "oraclefunctionsdevelopm/test-functions"
+      OCIR_REGION: "iad.ocir.io"
 
 inputArtifacts:
   - name: downloadDockerCredentialHelper
@@ -69,57 +73,28 @@ steps:
       copy_image timeout-fn 1.20
 
   - type: shell
-    name: Setup User
-    command: |
-      if [[ "${RELEASE:-false}" == false ]]; then
-        echo ${FDK_CONFIG_FILE_CONTENTS} | tr ' ' $'\n' | tee /tmp/config_fdk
-        echo "${FDK_CONFIG_PRIVATE_KEY}" > /tmp/oci_api_key_fdk.pem
-        ls -al /tmp/config_fdk /tmp/oci_api_key_fdk.pem
-      fi
-
-  - type: shell
     name: Run Integration Test Go 1.20
     command: |
-      if [[ "${RELEASE:-false}" == false ]]; then
-        mkdir -p integration_test_go1.20
-        cd integration_test_go1.20
-        tar zxvf ${OCI_WORKSPACE_DIR}/input/fdk-integration-test-${FDK_INTEGRATION_TEST_VERSION}.tar.gz .
+      mkdir -p integration_test_go1.20
+      cd integration_test_go1.20
+      tar zxvf ${OCI_WORKSPACE_DIR}/input/fdk-integration-test-${FDK_INTEGRATION_TEST_VERSION}.tar.gz .
 
-        CLASSPATH=$(echo *.jar | tr ' ' ':')
-        export AUTH_CONF_FILE_PATH=/tmp/config_fdk
-        export REGION=us-ashburn-1
-        export STAGE=teamcity
-        export MULTI_ARCH_ENABLED=True
-        export BUILD_VERSION=${FDK_VERSION}
-        export OCIR_LOC="oraclefunctionsdevelopm/test-functions"
-        export OCIR_REGION="iad.ocir.io"
-
-        export test=FunctionsIntegrationTest,RuntimeVersionIntegrationTest,OciSdkUsageIntegrationTest
-        export FDK_RUNTIME=go1.20
-        java -jar junit-platform-console-standalone.jar -cp "$CLASSPATH" --scan-class-path
-      fi
+      CLASSPATH=$(echo *.jar | tr ' ' ':')
+      export test=FunctionsIntegrationTest,RuntimeVersionIntegrationTest,OciSdkUsageIntegrationTest
+      export FDK_RUNTIME=go1.20
+      java -jar junit-platform-console-standalone.jar -cp "$CLASSPATH" --scan-class-path
 
   - type: shell
     name: Run Integration Test Go 1.19
     command: |
-      if [[ "${RELEASE:-false}" == false ]]; then
-        mkdir -p integration_test_go1.19
-        cd integration_test_go1.19
-        tar zxvf ${OCI_WORKSPACE_DIR}/input/fdk-integration-test-${FDK_INTEGRATION_TEST_VERSION}.tar.gz .
+      mkdir -p integration_test_go1.19
+      cd integration_test_go1.19
+      tar zxvf ${OCI_WORKSPACE_DIR}/input/fdk-integration-test-${FDK_INTEGRATION_TEST_VERSION}.tar.gz .
 
-        CLASSPATH=$(echo *.jar | tr ' ' ':')
-        export AUTH_CONF_FILE_PATH=/tmp/config_fdk
-        export REGION=us-ashburn-1
-        export STAGE=teamcity
-        export MULTI_ARCH_ENABLED=True
-        export BUILD_VERSION=${FDK_VERSION}
-        export OCIR_LOC="oraclefunctionsdevelopm/test-functions"
-        export OCIR_REGION="iad.ocir.io"
-
-        export FDK_RUNTIME=go1.19
-        export test=RuntimeVersionIntegrationTest
-        java -jar junit-platform-console-standalone.jar -cp "$CLASSPATH" --scan-class-path
-      fi
+      CLASSPATH=$(echo *.jar | tr ' ' ':')
+      export FDK_RUNTIME=go1.19
+      export test=RuntimeVersionIntegrationTest
+      java -jar junit-platform-console-standalone.jar -cp "$CLASSPATH" --scan-class-path
 
   - type: shell
     name: Publish images to public OCIR (Release Only)
