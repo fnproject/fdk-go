@@ -1,0 +1,15 @@
+ARG BUILD_IMAGE_VERSION=BUILD_IMAGE_VERSION
+ARG RUNTIME_IMAGE_VERSION=RUNTIME_IMAGE_VERSION
+
+FROM odo-docker-signed-local.artifactory.oci.oraclecorp.com/fdk-go:${BUILD_IMAGE_VERSION} as build-stage
+WORKDIR /function
+WORKDIR /go/src/func/
+ENV GO111MODULE=on
+COPY . .
+RUN go mod tidy
+RUN go mod vendor
+RUN go build -o func -v
+FROM odo-docker-signed-local.artifactory.oci.oraclecorp.com/fdk-go:${RUNTIME_IMAGE_VERSION}
+WORKDIR /function
+COPY --from=build-stage /go/src/func/func /function/
+ENTRYPOINT ["./func"]

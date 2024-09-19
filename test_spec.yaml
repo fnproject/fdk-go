@@ -71,6 +71,22 @@ steps:
       copy_image oci-sdk-fn 1.20
       copy_image runtime-version-fn 1.20
       copy_image timeout-fn 1.20
+      copy_image hello-world-fn 1.23
+      copy_image oci-sdk-fn 1.23
+      copy_image runtime-version-fn 1.23
+      copy_image timeout-fn 1.23
+
+  - type: shell
+    name: Run Integration Test Go 1.23
+    command: |
+      mkdir -p integration_test_go1.23
+      cd integration_test_go1.23
+      tar zxvf ${OCI_WORKSPACE_DIR}/input/fdk-integration-test-${FDK_INTEGRATION_TEST_VERSION}.tar.gz .
+
+      CLASSPATH=$(echo *.jar | tr ' ' ':')
+      export test=FunctionsIntegrationTest,RuntimeVersionIntegrationTest,OciSdkUsageIntegrationTest
+      export FDK_RUNTIME=go1.23
+      java -jar junit-platform-console-standalone.jar -cp "$CLASSPATH" --scan-class-path
 
   - type: shell
     name: Run Integration Test Go 1.20
@@ -85,23 +101,11 @@ steps:
       java -jar junit-platform-console-standalone.jar -cp "$CLASSPATH" --scan-class-path
 
   - type: shell
-    name: Run Integration Test Go 1.19
-    command: |
-      mkdir -p integration_test_go1.19
-      cd integration_test_go1.19
-      tar zxvf ${OCI_WORKSPACE_DIR}/input/fdk-integration-test-${FDK_INTEGRATION_TEST_VERSION}.tar.gz .
-
-      CLASSPATH=$(echo *.jar | tr ' ' ':')
-      export FDK_RUNTIME=go1.19
-      export test=RuntimeVersionIntegrationTest
-      java -jar junit-platform-console-standalone.jar -cp "$CLASSPATH" --scan-class-path
-
-  - type: shell
     name: Publish images to public OCIR (Release Only)
     command: |
       set -ex
       if [[ "${RELEASE:-false}" == true ]]; then
-        declare -a go_versions=('1.19' '1.20')
+        declare -a go_versions=('1.20' '1.23')
         declare -a suffixes=('' '-dev')
         for go in "${go_versions[@]}"; do
             for suffix in "${suffixes[@]}"; do

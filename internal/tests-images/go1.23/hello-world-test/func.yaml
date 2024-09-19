@@ -1,0 +1,8 @@
+schema_version: 20180708
+name: hello-world-fn
+version: 0.0.1
+runtime: go
+build_image: fnproject/go:1.23-dev
+run_image: fnproject/go:1.23
+entrypoint: ./func
+
