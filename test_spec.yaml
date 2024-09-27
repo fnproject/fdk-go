@@ -45,7 +45,7 @@ steps:
     name: Copy base images to OCIR
     command: |
       set -ex
-      declare -a go_versions=('1.19' '1.20')
+      declare -a go_versions=('1.20' '1.23')
       declare -a suffixes=('' '-dev')
       for go in "${go_versions[@]}"; do
           for suffix in "${suffixes[@]}"; do
@@ -66,7 +66,6 @@ steps:
           local dst="${FAAS_OCIR_REGION}/oraclefunctionsdevelopm/test-functions/${image}:go${go_version}-${FDK_VERSION}"
           ${OCI_WORKSPACE_DIR}/regctl image copy -v=DEBUG "$src" "$dst"
       }
-      copy_image runtime-version-fn 1.19
       copy_image hello-world-fn 1.20
       copy_image oci-sdk-fn 1.20
       copy_image runtime-version-fn 1.20
