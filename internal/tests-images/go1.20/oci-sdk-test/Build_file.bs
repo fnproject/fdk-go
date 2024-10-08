@@ -7,6 +7,7 @@ WORKDIR /go/src/func/
 ENV GO111MODULE=on
 COPY . .
 RUN go mod tidy
+RUN go get -d -v github.com/fnproject/fdk-go@v0.0.47 # TODO Workaround compile 1.23 issue. Remove after release.
 RUN go mod vendor
 RUN go build -o func -v
 FROM odo-docker-signed-local.artifactory.oci.oraclecorp.com/fdk-go:${RUNTIME_IMAGE_VERSION}
