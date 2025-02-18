@@ -46,7 +46,7 @@ steps:
     name: Copy base images to OCIR
     command: |
       set -ex
-      declare -a go_versions=('1.20' '1.23')
+      declare -a go_versions=('1.23' '1.24')
       declare -a suffixes=('' '-dev')
       for go in "${go_versions[@]}"; do
           for suffix in "${suffixes[@]}"; do
@@ -67,14 +67,14 @@ steps:
           local dst="${FAAS_OCIR_REGION}/oraclefunctionsdevelopm/test-functions/${image}:go${go_version}-${FDK_VERSION}"
           ${OCI_WORKSPACE_DIR}/regctl image copy -v=DEBUG "$src" "$dst"
       }
-      copy_image hello-world-fn 1.20
-      copy_image oci-sdk-fn 1.20
-      copy_image runtime-version-fn 1.20
-      copy_image timeout-fn 1.20
       copy_image hello-world-fn 1.23
       copy_image oci-sdk-fn 1.23
       copy_image runtime-version-fn 1.23
       copy_image timeout-fn 1.23
+      copy_image hello-world-fn 1.24
+      copy_image oci-sdk-fn 1.24
+      copy_image runtime-version-fn 1.24
+      copy_image timeout-fn 1.24
 
   - type: shell
     name: Run Integration Test Go 1.23
@@ -89,15 +89,15 @@ steps:
       java -jar junit-platform-console-standalone.jar -cp "$CLASSPATH" --scan-class-path
 
   - type: shell
-    name: Run Integration Test Go 1.20
+    name: Run Integration Test Go 1.24
     command: |
-      mkdir -p integration_test_go1.20
-      cd integration_test_go1.20
+      mkdir -p integration_test_go1.24
+      cd integration_test_go1.24
       tar zxvf ${OCI_WORKSPACE_DIR}/input/fdk-integration-test-${FDK_INTEGRATION_TEST_VERSION}.tar.gz .
 
       CLASSPATH=$(echo *.jar | tr ' ' ':')
       export test=FunctionsIntegrationTest,RuntimeVersionIntegrationTest,OciSdkUsageIntegrationTest
-      export FDK_RUNTIME=go1.20
+      export FDK_RUNTIME=go1.24
       java -jar junit-platform-console-standalone.jar -cp "$CLASSPATH" --scan-class-path
 
   - type: shell
@@ -105,7 +105,7 @@ steps:
     command: |
       set -ex
       if [[ "${RELEASE:-false}" == true ]]; then
-        declare -a go_versions=('1.20' '1.23')
+        declare -a go_versions=('1.23' '1.24')
         declare -a suffixes=('' '-dev')
         for go in "${go_versions[@]}"; do
             for suffix in "${suffixes[@]}"; do
