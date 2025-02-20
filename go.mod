@@ -1,3 +1,3 @@
 module github.com/fnproject/fdk-go
 
-go 1.24
+go 1.23
