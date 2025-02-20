@@ -8,6 +8,7 @@ ENV GO111MODULE=on
 COPY . .
 # RUN go mod tidy # TODO uncomment after release
 RUN go get -d -v github.com/fnproject/fdk-go@v0.0.53 # TODO Workaround compile 1.23 issue. Remove after release.
+RUN go get github.com/oracle/oci-go-sdk/v45 # TODO Workaround compile 1.23 issue. Remove after release.
 RUN go version
 RUN go mod vendor
 RUN go build -o func -v
