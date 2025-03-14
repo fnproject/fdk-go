@@ -23,7 +23,7 @@ import (
 )
 
 // Version is the FDK version
-const Version = "0.0.55"
+const Version = "0.0.56"
 
 var versionHeader = fmt.Sprintf("fdk-go/%s", Version)
 var runtimeHeader = fmt.Sprintf("go/%s", strings.TrimLeft(runtime.Version(), "go"))
