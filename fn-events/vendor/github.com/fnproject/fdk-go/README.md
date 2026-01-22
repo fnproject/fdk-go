@@ -7,10 +7,6 @@ For getting started using the Go FDK , see the tutorial [here.](https://github.c
 
 To get the Go FDK simply import it in your program `github.com/fnproject/fdk-go`, and use `go get` to get it.
 
-## Integrating with OCI Services
-
-Use the fn-events library to easily integrate your Function with OCI services; API Gateway. Start with the [README.md](fn-events/README.md)
-
 ## User Information
 * See the Fn [Quickstart](https://github.com/fnproject/fn/blob/master/README.md) for sample commands.
 * [Detailed installation instructions](http://fnproject.io/tutorials/install/).
