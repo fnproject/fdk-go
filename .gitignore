@@ -2,6 +2,5 @@
 .DS_Store
 fdk-go.iml
 .oca/
-internal/tests-images/*/pure-go-libs-code-only-fn-test/go.sum
 
 .csis
