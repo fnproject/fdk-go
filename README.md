@@ -21,4 +21,3 @@ Use the fn-events library to easily integrate your Function with OCI services; A
 ## Go FDK Development
 See [CONTRIBUTING](https://github.com/fnproject/fn/blob/master/CONTRIBUTING.md) for information on contributing to the project.
 
-
